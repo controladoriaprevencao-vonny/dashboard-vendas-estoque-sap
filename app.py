@@ -52,7 +52,7 @@ df_estoque = pd.read_excel(file_estoque) if file_estoque is not None else None
 st.markdown("---")
 
 # ==========================================
-# SEÇÃO DE VENDAS (Sempre visível a estrutura)
+# SEÇÃO DE VENDAS
 # ==========================================
 st.header("📈 Análises de Vendas")
 
@@ -163,16 +163,16 @@ with tab_v2:
                 hide_index=True,
                 column_config={
                     "Código Material": st.column_config.TextColumn(
-                        "Código Material"
+                        "Código Material", width="small"
                     ),
                     "Denominação de Item": st.column_config.TextColumn(
-                        "Denominação de Item"
+                        "Denominação de Item", width="large"
                     ),
                     "Média de Vendas (Qtd)": st.column_config.TextColumn(
-                        "Média de Vendas (Qtd)"
+                        "Média de Vendas (Qtd)", width="small"
                     ),
                     "Média de Valor Líquido (R$)": st.column_config.TextColumn(
-                        "Média de Valor Líquido (R$)"
+                        "Média de Valor Líquido (R$)", width="medium"
                     ),
                 },
             )
@@ -214,16 +214,16 @@ with tab_v3:
                 hide_index=True,
                 column_config={
                     "Código Material": st.column_config.TextColumn(
-                        "Código Material"
+                        "Código Material", width="small"
                     ),
                     "Denominação de Item": st.column_config.TextColumn(
-                        "Denominação de Item"
+                        "Denominação de Item", width="large"
                     ),
                     "Média de Vendas (Qtd)": st.column_config.TextColumn(
-                        "Média de Vendas (Qtd)"
+                        "Média de Vendas (Qtd)", width="small"
                     ),
                     "Média de Preço Interno (R$)": st.column_config.TextColumn(
-                        "Média de Preço Interno (R$)"
+                        "Média de Preço Interno (R$)", width="medium"
                     ),
                 },
             )
@@ -235,7 +235,7 @@ with tab_v3:
 st.markdown("---")
 
 # ==========================================
-# SEÇÃO DE ESTOQUES (Sempre visível a estrutura)
+# SEÇÃO DE ESTOQUES
 # ==========================================
 st.header("📋 Análises de Estoque")
 
@@ -287,18 +287,20 @@ if df_estoque is not None:
 
     st.dataframe(
         resumo_est,
-        use_container_width+True,
+        use_container_width=True,
         hide_index=True,
         column_config={
-            "Código Material": st.column_config.TextColumn("Código Material"),
+            "Código Material": st.column_config.TextColumn(
+                "Código Material", width="small"
+            ),
             "Denominação de Item": st.column_config.TextColumn(
-                "Denominação de Item"
+                "Denominação de Item", width="large"
             ),
             "Quantidade em Estoque": st.column_config.TextColumn(
-                "Quantidade em Estoque"
+                "Quantidade em Estoque", width="medium"
             ),
             "Valor Total em Estoque (R$)": st.column_config.TextColumn(
-                "Valor Total em Estoque (R$)"
+                "Valor Total em Estoque (R$)", width="medium"
             ),
         },
     )
