@@ -1,9 +1,11 @@
 import pandas as pd
 import streamlit as st
 
-# Configuração da página web
+# Configuração da página web (utilizando a logo da Vonný como ícone da guia)
 st.set_page_config(
-    page_title="Dashboard Executivo - Vonný", page_icon="📊", layout="wide"
+    page_title="Dashboard Executivo - Vonný",
+    page_icon="logo_vonny.png",  # Nome do arquivo da imagem que você subiu no GitHub
+    layout="wide",
 )
 
 # Estilo visual corporativo e limpo
@@ -63,7 +65,7 @@ def carregar_estoque(uploaded_file):
     return df
 
 # ==========================================
-# BARRA LATERAL (Upload e Configurações)
+# BARRA LATERAL (Upload e Navegação Lateral)
 # ==========================================
 with st.sidebar:
     st.header("📂 Painel de Upload")
@@ -77,10 +79,18 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    if st.button("🏠 Voltar ao Menu Principal"):
+    st.header("🧭 Menu de Navegação")
+    if st.button("🏠 Menu Principal"):
         st.session_state.pagina_atual = "Home"
         st.rerun()
+    if st.button("📈 Ir para Vendas"):
+        st.session_state.pagina_atual = "Vendas"
+        st.rerun()
+    if st.button("📋 Ir para Estoques"):
+        st.session_state.pagina_atual = "Estoques"
+        st.rerun()
 
+    st.markdown("---")
     if st.button("🔄 Limpar Dados e Cache"):
         st.cache_data.clear()
         st.rerun()
@@ -299,11 +309,6 @@ elif st.session_state.pagina_atual == "Vendas":
             "⚠️ O arquivo de Vendas ainda não foi carregado. Faça o upload na barra lateral."
         )
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("⬅️ Voltar ao Menu Principal"):
-        st.session_state.pagina_atual = "Home"
-        st.rerun()
-
 # ==========================================
 # PÁGINA DE ESTOQUES
 # ==========================================
@@ -381,8 +386,3 @@ elif st.session_state.pagina_atual == "Estoques":
         st.warning(
             "⚠️ O arquivo de Estoques ainda não foi carregado. Faça o upload na barra lateral."
         )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("⬅️ Voltar ao Menu Principal"):
-        st.session_state.pagina_atual = "Home"
-        st.rerun()
