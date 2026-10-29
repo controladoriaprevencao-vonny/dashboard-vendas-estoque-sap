@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Dashboard Executivo SAP", page_icon="📊", layout="wide"
 )
 
-# Estilo visual corporativo (Azul Executivo e ocultação de grades/estilização limpa)
+# Estilo visual corporativo: Centraliza todas as células das tabelas e aplica padrão limpo
 st.markdown(
     """
     <style>
@@ -16,9 +16,9 @@ st.markdown(
     h1, h2, h3 {
         color: #1F4E79;
     }
-    .stDataFrame {
-        border: 1px solid #dcdcdc;
-        border-radius: 5px;
+    /* Centraliza o conteúdo de todas as células das tabelas do Streamlit */
+    .stDataFrame td, .stDataFrame th {
+        text-align: center !important;
     }
     </style>
 """,
@@ -124,7 +124,6 @@ if file_vendas is not None and file_estoque is not None:
 
         with tab2:
             st.subheader("Controle Consolidado de Estoque")
-            # Mapeamento baseado na estrutura SAP: Material, Texto breve, Utilização livre (Qtd), Val.utiliz.livre (Valor)
             col_mat = (
                 "Material"
                 if "Material" in df_estoque.columns
