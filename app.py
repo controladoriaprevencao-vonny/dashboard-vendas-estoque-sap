@@ -125,7 +125,7 @@ if st.session_state.pagina_atual == "Home":
     with col_btn2:
         st.markdown("### 📋 Módulo de Estoques")
         st.markdown(
-            "Controle consolidado de inventário, quantidades em utilização livre e valor total em estoque."
+            "Controle consolidado de inventário, quantidades em utilização livre, filtro por loja e valor total."
         )
         if st.button("Acessar Estoques ➔", key="btn_estoques"):
             st.session_state.pagina_atual = "Estoques"
@@ -152,7 +152,6 @@ elif st.session_state.pagina_atual == "Vendas":
             ]
         )
 
-        # Função auxiliar interna para aplicar o filtro de loja de forma isolada em cada aba
         def filtrar_por_loja(df, key_sufixo):
             if "Divisão" in df.columns:
                 divisões = ["TODAS"] + list(
@@ -374,36 +373,63 @@ elif st.session_state.pagina_atual == "Estoques":
     st.title("📋 Relatório Consolidado de Estoque")
 
     if df_estoque is not None:
+        # Detecta se existe coluna de Loja / Divisão ou Centro no arquivo de estoque
+        coluna_loja_estoque = None
+        for col in ["Divisão", "Centro", "Depósito", "Local"]:
+            if col in df_estoque.columns:
+                coluna_loja_estoque = col
+                break
+
+        df_estoque_filtrado = df_estoque.copy()
+        if coluna_loja_estoque:
+            divisões_est = ["TODAS"] + list(
+                df_estoque[coluna_loja_estoque].dropna().astype(str).unique()
+            )
+            loja_est_selecionada = st.selectbox(
+                f"Selecione a Loja ({coluna_loja_estoque}):",
+                divisões_est,
+                key="filtro_loja_estoque",
+            )
+            if loja_est_selecionada != "TODAS":
+                df_estoque_filtrado = df_estoque_filtrado[
+                    df_estoque_filtrado[coluna_loja_estoque].astype(str)
+                    == loja_est_selecionada
+                ]
+        else:
+            st.info(
+                "💡 Dica: Nenhuma coluna explícita de 'Divisão' ou 'Centro' foi detectada no arquivo de estoque, exibindo a consolidação geral."
+            )
+
         col_mat = (
             "Material"
-            if "Material" in df_estoque.columns
-            else df_estoque.columns[0]
+            if "Material" in df_estoque_filtrado.columns
+            else df_estoque_filtrado.columns[0]
         )
         col_desc = (
             "Texto breve material"
-            if "Texto breve material" in df_estoque.columns
-            else df_estoque.columns[1]
+            if "Texto breve material" in df_estoque_filtrado.columns
+            else df_estoque_filtrado.columns[1]
         )
         col_qtd = (
             "Utilização livre"
-            if "Utilização livre" in df_estoque.columns
-            else df_estoque.columns[5]
+            if "Utilização livre" in df_estoque_filtrado.columns
+            else df_estoque_filtrado.columns[5]
         )
         col_val = (
             "Val.utiliz.livre"
-            if "Val.utiliz.livre" in df_estoque.columns
-            else df_estoque.columns[6]
+            if "Val.utiliz.livre" in df_estoque_filtrado.columns
+            else df_estoque_filtrado.columns[6]
         )
 
-        df_estoque[col_qtd] = pd.to_numeric(
-            df_estoque[col_qtd], errors="coerce"
+        df_estoque_filtrado[col_qtd] = pd.to_numeric(
+            df_estoque_filtrado[col_qtd], errors="coerce"
         ).fillna(0)
-        df_estoque[col_val] = pd.to_numeric(
-            df_estoque[col_val], errors="coerce"
+        df_estoque_filtrado[col_val] = pd.to_numeric(
+            df_estoque_filtrado[col_val], errors="coerce"
         ).fillna(0)
 
         resumo_est = (
-            df_estoque.groupby([col_mat, col_desc])
+            df_estoque_filtrado.groupby([col_mat, col_desc])
             .agg({col_qtd: "sum", col_val: "sum"})
             .reset_index()
         )
