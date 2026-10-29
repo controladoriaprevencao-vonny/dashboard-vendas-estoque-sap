@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
 
-# Configuração da página web (utilizando a logo da Vonný como ícone da guia)
+# Configuração da página web com o ícone personalizado
 st.set_page_config(
     page_title="Dashboard Executivo - Vonný",
-    page_icon="logo_vonny.png",  # Nome do arquivo da imagem que você subiu no GitHub
+    page_icon="icone.png",
     layout="wide",
 )
 
@@ -116,7 +116,7 @@ if st.session_state.pagina_atual == "Home":
     with col_btn1:
         st.markdown("### 📈 Módulo de Vendas")
         st.markdown(
-            "Análises de faturamento por grupos de mercadorias, filtros por loja e médias de vendas e preços."
+            "Análises de faturamento por grupos de mercadorias, preço total real, filtros por loja e médias."
         )
         if st.button("Acessar Vendas ➔", key="btn_vendas"):
             st.session_state.pagina_atual = "Vendas"
@@ -143,11 +143,13 @@ elif st.session_state.pagina_atual == "Vendas":
     st.title("📈 Relatório Executivo de Vendas")
 
     if df_vendas is not None:
-        tab_v1, tab_v2, tab_v3 = st.tabs(
+        # Agora com 4 abas, incluindo o Preço Total Real das Vendas
+        tab_v1, tab_v2, tab_v3, tab_v4 = st.tabs(
             [
                 "Resumo por Grupos",
                 "Média de Vendas por Produto",
                 "Média Preço Interno",
+                "Preço Total Real",
             ]
         )
 
@@ -301,6 +303,58 @@ elif st.session_state.pagina_atual == "Vendas":
                         ),
                         "Média de Preço Interno (R$)": st.column_config.TextColumn(
                             "Média de Preço Interno (R$)", width="medium"
+                        ),
+                    },
+                )
+
+        with tab_v4:
+            st.subheader("Preço Total Real das Vendas por Produto")
+            if (
+                "Material" in df_vendas.columns
+                and "Denominação de item" in df_vendas.columns
+                and "Quantidade faturada" in df_vendas.columns
+                and "Valor líquido" in df_vendas.columns
+            ):
+                total_real = (
+                    df_vendas.groupby(["Material", "Denominação de item"])
+                    .agg(
+                        {
+                            "Quantidade faturada": "sum",
+                            "Valor líquido": "sum",
+                        }
+                    )
+                    .reset_index()
+                )
+                total_real.columns = [
+                    "Código Material",
+                    "Denominação de Item",
+                    "Quantidade Total Faturada",
+                    "Preço Total Real (R$)",
+                ]
+
+                total_real["Quantidade Total Faturada"] = total_real[
+                    "Quantidade Total Faturada"
+                ].apply(lambda x: f"{int(round(x)):,}".replace(",", "."))
+                total_real["Preço Total Real (R$)"] = total_real[
+                    "Preço Total Real (R$)"
+                ].map("R$ {:,.2f}".format)
+
+                st.dataframe(
+                    total_real,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Código Material": st.column_config.TextColumn(
+                            "Código Material", width="small"
+                        ),
+                        "Denominação de Item": st.column_config.TextColumn(
+                            "Denominação de Item", width="large"
+                        ),
+                        "Quantidade Total Faturada": st.column_config.TextColumn(
+                            "Quantidade Total Faturada", width="small"
+                        ),
+                        "Preço Total Real (R$)": st.column_config.TextColumn(
+                            "Preço Total Real (R$)", width="medium"
                         ),
                     },
                 )
