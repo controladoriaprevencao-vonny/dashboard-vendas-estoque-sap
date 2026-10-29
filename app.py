@@ -1,12 +1,12 @@
 import pandas as pd
 import streamlit as st
 
-# Configuração da página web
+# Configuração da página web em modo expansivo
 st.set_page_config(
     page_title="Dashboard Executivo SAP", page_icon="📊", layout="wide"
 )
 
-# Estilo visual corporativo e limpo
+# Estilo visual corporativo: Centraliza o texto de todas as células e cabeçalhos das tabelas
 st.markdown(
     """
     <style>
@@ -16,6 +16,15 @@ st.markdown(
     h1, h2, h3 {
         color: #1F4E79;
     }
+    /* Força o alinhamento centralizado em todas as tabelas do Streamlit */
+    div[data-testid="stDataFrame"] th {
+        text-align: center !important;
+        justify-content: center !important;
+    }
+    div[data-testid="stDataFrame"] td {
+        text-align: center !important;
+        justify-content: center !important;
+    }
     </style>
 """,
     unsafe_allow_html=True,
@@ -23,40 +32,31 @@ st.markdown(
 
 st.title("📊 Dashboard Executivo - Vendas e Estoques SAP")
 st.markdown(
-    "Faça o upload dos relatórios do SAP de forma independente para gerar as análises para a gestão."
+    "Utilize o painel lateral à esquerda para carregar os relatórios e visualizar as análises de forma organizada."
 )
 
-# Barra lateral com opção de reiniciar
+# ==========================================
+# ÁREA DE UPLOAD ORGANIZADA NA BARRA LATERAL
+# ==========================================
 with st.sidebar:
-    st.header("⚙️ Configurações")
+    st.header("📂 Painel de Upload")
+    st.markdown("Faça o envio dos relatórios do SAP separadamente:")
+
+    file_vendas = st.file_uploader(
+        "1. Relatório de Vendas (.xlsx)", type=["xlsx"], key="vendas"
+    )
+    file_estoque = st.file_uploader(
+        "2. Relatório de Estoques (.xlsx)", type=["xlsx"], key="estoque"
+    )
+
+    st.markdown("---")
     if st.button("🔄 Limpar Dados e Recarregar"):
         st.cache_data.clear()
         st.rerun()
 
-    st.markdown("---")
-    st.info("Dica: Você pode carregar apenas Vendas ou apenas Estoques separadamente.")
-
-# Duas seções distintas para separar totalmente Vendas e Estoques
-col1, col2 = st.columns(2)
-
-df_vendas = None
-df_estoque = None
-
-with col1:
-    st.subheader("📦 Relatório de Vendas")
-    file_vendas = st.file_uploader(
-        "Carregar Excel de Vendas (.xlsx)", type=["xlsx"], key="vendas"
-    )
-    if file_vendas is not None:
-        df_vendas = pd.read_excel(file_vendas)
-
-with col2:
-    st.subheader("🏢 Relatório de Estoques")
-    file_estoque = st.file_uploader(
-        "Carregar Excel de Estoques (.xlsx)", type=["xlsx"], key="estoque"
-    )
-    if file_estoque is not None:
-        df_estoque = pd.read_excel(file_estoque)
+# Lê os arquivos de forma independente assim que enviados
+df_vendas = pd.read_excel(file_vendas) if file_vendas is not None else None
+df_estoque = pd.read_excel(file_estoque) if file_estoque is not None else None
 
 st.markdown("---")
 
@@ -123,23 +123,7 @@ if df_vendas is not None:
                 "Valor Líquido Total (R$)"
             ].map("R$ {:,.2f}".format)
 
-            # Força o alinhamento centralizado via configuração de colunas do Streamlit
-            st.dataframe(
-                resumo_grupo,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Grupo de Mercadorias": st.column_config.TextColumn(
-                        "Grupo de Mercadorias",
-                        help="Grupo",
-                        width="medium",
-                        # Garante centralização visual nativa
-                    ),
-                    "Valor Líquido Total (R$)": st.column_config.TextColumn(
-                        "Valor Líquido Total (R$)"
-                    ),
-                },
-            )
+            st.dataframe(resumo_grupo, use_container_width=True, hide_index=True)
         else:
             st.warning("Colunas de resumo não encontradas no arquivo de Vendas.")
 
@@ -253,5 +237,5 @@ if df_estoque is not None:
 
 if df_vendas is None and df_estoque is None:
     st.info(
-        "👆 Faça o upload do relatório de Vendas e/ou de Estoques acima para visualizar as análises correspondentes."
+        "👈 Utilize o painel lateral à esquerda para carregar o relatório de Vendas e/ou de Estoques e exibir os dados."
     )
