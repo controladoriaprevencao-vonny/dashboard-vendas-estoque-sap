@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Dashboard Executivo SAP", page_icon="📊", layout="wide"
 )
 
-# Estilo visual corporativo: Centraliza o texto de todas as células e cabeçalhos das tabelas
+# Estilo visual corporativo e forçamento de centralização absoluta em todas as tabelas
 st.markdown(
     """
     <style>
@@ -16,14 +16,14 @@ st.markdown(
     h1, h2, h3 {
         color: #1F4E79;
     }
-    /* Força o alinhamento centralizado em todas as tabelas do Streamlit */
-    div[data-testid="stDataFrame"] th {
+    /* Força o alinhamento centralizado em todas as células e cabeçalhos do dataframe */
+    .stDataFrame [data-testid="stTable"] th, 
+    .stDataFrame [data-testid="stTable"] td,
+    div[data-testid="stDataFrame"] div[role="columnheader"],
+    div[data-testid="stDataFrame"] div[role="gridcell"] {
         text-align: center !important;
         justify-content: center !important;
-    }
-    div[data-testid="stDataFrame"] td {
-        text-align: center !important;
-        justify-content: center !important;
+        align-content: center !important;
     }
     </style>
 """,
