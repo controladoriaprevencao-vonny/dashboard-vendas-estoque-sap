@@ -1,12 +1,12 @@
 import pandas as pd
 import streamlit as st
 
-# Configuração da página web para ocupar o espaço completo
+# Configuração da página web
 st.set_page_config(
     page_title="Dashboard Executivo SAP", page_icon="📊", layout="wide"
 )
 
-# Estilo visual corporativo: Centraliza todas as células das tabelas e aplica padrão limpo
+# Estilo visual corporativo e centralização de tabelas
 st.markdown(
     """
     <style>
@@ -16,7 +16,6 @@ st.markdown(
     h1, h2, h3 {
         color: #1F4E79;
     }
-    /* Centraliza o conteúdo de todas as células das tabelas do Streamlit */
     .stDataFrame td, .stDataFrame th {
         text-align: center !important;
     }
@@ -30,7 +29,20 @@ st.markdown(
     "Faça o upload dos relatórios do SAP abaixo para gerar as análises instantaneamente para a gestão."
 )
 
-# Criando duas colunas para upload separado e organizado para o gerente
+# Barra lateral com opção de reiniciar/limpar os dados carregados
+with st.sidebar:
+    st.header("⚙️ Configurações")
+    if st.button("🔄 Carregar Novos Arquivos"):
+        # Limpa os arquivos da sessão se o usuário quiser resetar
+        st.cache_data.clear()
+        st.rerun()
+
+    st.markdown("---")
+    st.info(
+        "Dica: O painel processa os dados instantaneamente em segundo plano após o upload de ambos os arquivos."
+    )
+
+# Criando duas colunas para upload separado
 col_up1, col_up2 = st.columns(2)
 
 with col_up1:
@@ -47,13 +59,10 @@ with col_up2:
 
 if file_vendas is not None and file_estoque is not None:
     try:
-        # Lê os dataframes de vendas e estoques enviados
         df_vendas = pd.read_excel(file_vendas)
         df_estoque = pd.read_excel(file_estoque)
 
-        # ==========================================
-        # TRATAMENTO DE VENDAS
-        # ==========================================
+        # Tratamento de Vendas
         if "Quantidade faturada" in df_vendas.columns and "Preço interno" in df_vendas.columns:
             df_vendas["Quantidade faturada"] = pd.to_numeric(
                 df_vendas["Quantidade faturada"], errors="coerce"
@@ -68,7 +77,7 @@ if file_vendas is not None and file_estoque is not None:
                 df_vendas["Quantidade faturada"] * df_vendas["Preço interno"]
             )
 
-        # Abas de navegação na página web
+        # Abas de navegação
         tab1, tab2, tab3, tab4 = st.tabs(
             [
                 "Resumo por Grupos",
@@ -80,8 +89,6 @@ if file_vendas is not None and file_estoque is not None:
 
         with tab1:
             st.subheader("Resumo de Grupos de Mercadorias")
-
-            # Filtro interativo por Loja (Divisão)
             if "Divisão" in df_vendas.columns:
                 divisões = ["TODAS"] + list(
                     df_vendas["Divisão"].dropna().astype(str).unique()
@@ -98,7 +105,6 @@ if file_vendas is not None and file_estoque is not None:
             else:
                 df_filtrado = df_vendas.copy()
 
-            # Agrupamento por Grupo de Mercadorias
             if (
                 "Grupo de mercadorias" in df_filtrado.columns
                 and "Valor líquido" in df_filtrado.columns
