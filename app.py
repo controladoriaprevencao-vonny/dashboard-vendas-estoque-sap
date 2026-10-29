@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Dashboard Executivo SAP", page_icon="📊", layout="wide"
 )
 
-# Estilo visual corporativo e forçamento de centralização absoluta em todas as tabelas
+# Estilo visual corporativo e limpo
 st.markdown(
     """
     <style>
@@ -15,15 +15,6 @@ st.markdown(
     }
     h1, h2, h3 {
         color: #1F4E79;
-    }
-    /* Força o alinhamento centralizado em todas as células e cabeçalhos do dataframe */
-    .stDataFrame [data-testid="stTable"] th, 
-    .stDataFrame [data-testid="stTable"] td,
-    div[data-testid="stDataFrame"] div[role="columnheader"],
-    div[data-testid="stDataFrame"] div[role="gridcell"] {
-        text-align: center !important;
-        justify-content: center !important;
-        align-content: center !important;
     }
     </style>
 """,
@@ -123,7 +114,22 @@ if df_vendas is not None:
                 "Valor Líquido Total (R$)"
             ].map("R$ {:,.2f}".format)
 
-            st.dataframe(resumo_grupo, use_container_width=True, hide_index=True)
+            # Centralização forçada via column_config
+            st.dataframe(
+                resumo_grupo,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Grupo de Mercadorias": st.column_config.TextColumn(
+                        "Grupo de Mercadorias",
+                        width="medium",
+                        pinned=True,
+                    ),
+                    "Valor Líquido Total (R$)": st.column_config.TextColumn(
+                        "Valor Líquido Total (R$)", width="medium"
+                    ),
+                },
+            )
         else:
             st.warning("Colunas de resumo não encontradas no arquivo de Vendas.")
 
@@ -152,7 +158,25 @@ if df_vendas is not None:
                 "Média de Valor Líquido (R$)"
             ].map("R$ {:,.2f}".format)
 
-            st.dataframe(media_prod, use_container_width=True, hide_index=True)
+            st.dataframe(
+                media_prod,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Código Material": st.column_config.TextColumn(
+                        "Código Material"
+                    ),
+                    "Denominação de Item": st.column_config.TextColumn(
+                        "Denominação de Item"
+                    ),
+                    "Média de Vendas (Qtd)": st.column_config.TextColumn(
+                        "Média de Vendas (Qtd)"
+                    ),
+                    "Média de Valor Líquido (R$)": st.column_config.TextColumn(
+                        "Média de Valor Líquido (R$)"
+                    ),
+                },
+            )
 
     with tab_v3:
         st.subheader("Média de Preço Interno por Produto")
@@ -180,7 +204,25 @@ if df_vendas is not None:
                 "Média de Preço Interno (R$)"
             ].map("R$ {:,.2f}".format)
 
-            st.dataframe(media_preco, use_container_width=True, hide_index=True)
+            st.dataframe(
+                media_preco,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Código Material": st.column_config.TextColumn(
+                        "Código Material"
+                    ),
+                    "Denominação de Item": st.column_config.TextColumn(
+                        "Denominação de Item"
+                    ),
+                    "Média de Vendas (Qtd)": st.column_config.TextColumn(
+                        "Média de Vendas (Qtd)"
+                    ),
+                    "Média de Preço Interno (R$)": st.column_config.TextColumn(
+                        "Média de Preço Interno (R$)"
+                    ),
+                },
+            )
 
 # ==========================================
 # SEÇÃO DE ESTOQUES (Independente)
@@ -233,7 +275,23 @@ if df_estoque is not None:
         "Valor Total em Estoque (R$)"
     ].map("R$ {:,.2f}".format)
 
-    st.dataframe(resumo_est, use_container_width=True, hide_index=True)
+    st.dataframe(
+        resumo_est,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Código Material": st.column_config.TextColumn("Código Material"),
+            "Denominação de Item": st.column_config.TextColumn(
+                "Denominação de Item"
+            ),
+            "Quantidade em Estoque": st.column_config.TextColumn(
+                "Quantidade em Estoque"
+            ),
+            "Valor Total em Estoque (R$)": st.column_config.TextColumn(
+                "Valor Total em Estoque (R$)"
+            ),
+        },
+    )
 
 if df_vendas is None and df_estoque is None:
     st.info(
