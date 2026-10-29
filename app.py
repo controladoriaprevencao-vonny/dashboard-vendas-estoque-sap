@@ -143,7 +143,6 @@ elif st.session_state.pagina_atual == "Vendas":
     st.title("📈 Relatório Executivo de Vendas")
 
     if df_vendas is not None:
-        # Agora com 4 abas, incluindo o Preço Total Real das Vendas
         tab_v1, tab_v2, tab_v3, tab_v4 = st.tabs(
             [
                 "Resumo por Grupos",
@@ -153,30 +152,29 @@ elif st.session_state.pagina_atual == "Vendas":
             ]
         )
 
-        with tab_v1:
-            st.subheader("Resumo de Grupos de Mercadorias")
-            if "Divisão" in df_vendas.columns:
+        # Função auxiliar interna para aplicar o filtro de loja de forma isolada em cada aba
+        def filtrar_por_loja(df, key_sufixo):
+            if "Divisão" in df.columns:
                 divisões = ["TODAS"] + list(
-                    df_vendas["Divisão"].dropna().astype(str).unique()
+                    df["Divisão"].dropna().astype(str).unique()
                 )
                 loja_selecionada = st.selectbox(
-                    "Selecione a Loja:", divisões, key="filtro_loja"
+                    "Selecione a Loja:", divisões, key=f"filtro_loja_{key_sufixo}"
                 )
-
-                df_filtrado = df_vendas.copy()
                 if loja_selecionada != "TODAS":
-                    df_filtrado = df_filtrado[
-                        df_filtrado["Divisão"].astype(str) == loja_selecionada
-                    ]
-            else:
-                df_filtrado = df_vendas.copy()
+                    return df[df["Divisão"].astype(str) == loja_selecionada]
+            return df
+
+        with tab_v1:
+            st.subheader("Resumo de Grupos de Mercadorias")
+            df_f1 = filtrar_por_loja(df_vendas, "tab1")
 
             if (
-                "Grupo de mercadorias" in df_filtrado.columns
-                and "Valor líquido" in df_filtrado.columns
+                "Grupo de mercadorias" in df_f1.columns
+                and "Valor líquido" in df_f1.columns
             ):
                 resumo_grupo = (
-                    df_filtrado.groupby("Grupo de mercadorias")["Valor líquido"]
+                    df_f1.groupby("Grupo de mercadorias")["Valor líquido"]
                     .sum()
                     .reset_index()
                 )
@@ -208,12 +206,14 @@ elif st.session_state.pagina_atual == "Vendas":
 
         with tab_v2:
             st.subheader("Média de Vendas por Produto")
+            df_f2 = filtrar_por_loja(df_vendas, "tab2")
+
             if (
-                "Material" in df_vendas.columns
-                and "Denominação de item" in df_vendas.columns
+                "Material" in df_f2.columns
+                and "Denominação de item" in df_f2.columns
             ):
                 media_prod = (
-                    df_vendas.groupby(["Material", "Denominação de item"])
+                    df_f2.groupby(["Material", "Denominação de item"])
                     .agg(
                         {
                             "Quantidade faturada": "mean",
@@ -258,13 +258,15 @@ elif st.session_state.pagina_atual == "Vendas":
 
         with tab_v3:
             st.subheader("Média de Preço Interno por Produto")
+            df_f3 = filtrar_por_loja(df_vendas, "tab3")
+
             if (
-                "Material" in df_vendas.columns
-                and "Denominação de item" in df_vendas.columns
-                and "Preço interno" in df_vendas.columns
+                "Material" in df_f3.columns
+                and "Denominação de item" in df_f3.columns
+                and "Preço interno" in df_f3.columns
             ):
                 media_preco = (
-                    df_vendas.groupby(["Material", "Denominação de item"])
+                    df_f3.groupby(["Material", "Denominação de item"])
                     .agg(
                         {
                             "Quantidade faturada": "mean",
@@ -309,14 +311,16 @@ elif st.session_state.pagina_atual == "Vendas":
 
         with tab_v4:
             st.subheader("Preço Total Real das Vendas por Produto")
+            df_f4 = filtrar_por_loja(df_vendas, "tab4")
+
             if (
-                "Material" in df_vendas.columns
-                and "Denominação de item" in df_vendas.columns
-                and "Quantidade faturada" in df_vendas.columns
-                and "Valor líquido" in df_vendas.columns
+                "Material" in df_f4.columns
+                and "Denominação de item" in df_f4.columns
+                and "Quantidade faturada" in df_f4.columns
+                and "Valor líquido" in df_f4.columns
             ):
                 total_real = (
-                    df_vendas.groupby(["Material", "Denominação de item"])
+                    df_f4.groupby(["Material", "Denominação de item"])
                     .agg(
                         {
                             "Quantidade faturada": "sum",
