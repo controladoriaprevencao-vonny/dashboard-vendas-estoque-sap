@@ -116,7 +116,7 @@ if st.session_state.pagina_atual == "Home":
     with col_btn1:
         st.markdown("### 📈 Módulo de Vendas")
         st.markdown(
-            "Análises de faturamento por grupos de mercadorias, preço total real, filtros por loja e médias."
+            "Análises de faturamento com ranking de preços, preço total real, filtros por loja e médias."
         )
         if st.button("Acessar Vendas ➔", key="btn_vendas"):
             st.session_state.pagina_atual = "Vendas"
@@ -125,7 +125,7 @@ if st.session_state.pagina_atual == "Home":
     with col_btn2:
         st.markdown("### 📋 Módulo de Estoques")
         st.markdown(
-            "Controle consolidado de inventário, quantidades em utilização livre, filtro por loja e valor total."
+            "Controle consolidado de inventário com ranking por valor, quantidades em utilização livre e filtro por loja."
         )
         if st.button("Acessar Estoques ➔", key="btn_estoques"):
             st.session_state.pagina_atual = "Estoques"
@@ -177,7 +177,13 @@ elif st.session_state.pagina_atual == "Vendas":
                     .sum()
                     .reset_index()
                 )
+                
+                # Criação do Ranking por Valor Líquido (decrescente)
+                resumo_grupo = resumo_grupo.sort_values(by="Valor líquido", ascending=False).reset_index(drop=True)
+                resumo_grupo.insert(0, "Ranking", range(1, len(resumo_grupo) + 1))
+
                 resumo_grupo.columns = [
+                    "Ranking",
                     "Grupo de Mercadorias",
                     "Valor Líquido Total (R$)",
                 ]
@@ -190,18 +196,13 @@ elif st.session_state.pagina_atual == "Vendas":
                     use_container_width=True,
                     hide_index=True,
                     column_config={
-                        "Grupo de Mercadorias": st.column_config.TextColumn(
-                            "Grupo de Mercadorias", width="medium"
-                        ),
-                        "Valor Líquido Total (R$)": st.column_config.TextColumn(
-                            "Valor Líquido Total (R$)", width="medium"
-                        ),
+                        "Ranking": st.column_config.TextColumn("Ranking", width="small"),
+                        "Grupo de Mercadorias": st.column_config.TextColumn("Grupo de Mercadorias", width="medium"),
+                        "Valor Líquido Total (R$)": st.column_config.TextColumn("Valor Líquido Total (R$)", width="medium"),
                     },
                 )
             else:
-                st.warning(
-                    "Colunas necessárias não encontradas no arquivo de Vendas."
-                )
+                st.warning("Colunas necessárias não encontradas no arquivo de Vendas.")
 
         with tab_v2:
             st.subheader("Média de Vendas por Produto")
@@ -221,7 +222,13 @@ elif st.session_state.pagina_atual == "Vendas":
                     )
                     .reset_index()
                 )
+                
+                # Ranking por Média de Valor Líquido
+                media_prod = media_prod.sort_values(by="Valor líquido", ascending=False).reset_index(drop=True)
+                media_prod.insert(0, "Ranking", range(1, len(media_prod) + 1))
+
                 media_prod.columns = [
+                    "Ranking",
                     "Código Material",
                     "Denominação de Item",
                     "Média de Vendas (Qtd)",
@@ -240,18 +247,11 @@ elif st.session_state.pagina_atual == "Vendas":
                     use_container_width=True,
                     hide_index=True,
                     column_config={
-                        "Código Material": st.column_config.TextColumn(
-                            "Código Material", width="small"
-                        ),
-                        "Denominação de Item": st.column_config.TextColumn(
-                            "Denominação de Item", width="large"
-                        ),
-                        "Média de Vendas (Qtd)": st.column_config.TextColumn(
-                            "Média de Vendas (Qtd)", width="small"
-                        ),
-                        "Média de Valor Líquido (R$)": st.column_config.TextColumn(
-                            "Média de Valor Líquido (R$)", width="medium"
-                        ),
+                        "Ranking": st.column_config.TextColumn("Ranking", width="small"),
+                        "Código Material": st.column_config.TextColumn("Código Material", width="small"),
+                        "Denominação de Item": st.column_config.TextColumn("Denominação de Item", width="large"),
+                        "Média de Vendas (Qtd)": st.column_config.TextColumn("Média de Vendas (Qtd)", width="small"),
+                        "Média de Valor Líquido (R$)": st.column_config.TextColumn("Média de Valor Líquido (R$)", width="medium"),
                     },
                 )
 
@@ -274,7 +274,13 @@ elif st.session_state.pagina_atual == "Vendas":
                     )
                     .reset_index()
                 )
+                
+                # Ranking por Média de Preço Interno (do mais caro para o mais barato)
+                media_preco = media_preco.sort_values(by="Preço interno", ascending=False).reset_index(drop=True)
+                media_preco.insert(0, "Ranking", range(1, len(media_preco) + 1))
+
                 media_preco.columns = [
+                    "Ranking",
                     "Código Material",
                     "Denominação de Item",
                     "Média de Vendas (Qtd)",
@@ -293,18 +299,11 @@ elif st.session_state.pagina_atual == "Vendas":
                     use_container_width=True,
                     hide_index=True,
                     column_config={
-                        "Código Material": st.column_config.TextColumn(
-                            "Código Material", width="small"
-                        ),
-                        "Denominação de Item": st.column_config.TextColumn(
-                            "Denominação de Item", width="large"
-                        ),
-                        "Média de Vendas (Qtd)": st.column_config.TextColumn(
-                            "Média de Vendas (Qtd)", width="small"
-                        ),
-                        "Média de Preço Interno (R$)": st.column_config.TextColumn(
-                            "Média de Preço Interno (R$)", width="medium"
-                        ),
+                        "Ranking": st.column_config.TextColumn("Ranking", width="small"),
+                        "Código Material": st.column_config.TextColumn("Código Material", width="small"),
+                        "Denominação de Item": st.column_config.TextColumn("Denominação de Item", width="large"),
+                        "Média de Vendas (Qtd)": st.column_config.TextColumn("Média de Vendas (Qtd)", width="small"),
+                        "Média de Preço Interno (R$)": st.column_config.TextColumn("Média de Preço Interno (R$)", width="medium"),
                     },
                 )
 
@@ -328,7 +327,13 @@ elif st.session_state.pagina_atual == "Vendas":
                     )
                     .reset_index()
                 )
+                
+                # Ranking por Preço Total Real (Valor Líquido)
+                total_real = total_real.sort_values(by="Valor líquido", ascending=False).reset_index(drop=True)
+                total_real.insert(0, "Ranking", range(1, len(total_real) + 1))
+
                 total_real.columns = [
+                    "Ranking",
                     "Código Material",
                     "Denominação de Item",
                     "Quantidade Total Faturada",
@@ -347,18 +352,11 @@ elif st.session_state.pagina_atual == "Vendas":
                     use_container_width=True,
                     hide_index=True,
                     column_config={
-                        "Código Material": st.column_config.TextColumn(
-                            "Código Material", width="small"
-                        ),
-                        "Denominação de Item": st.column_config.TextColumn(
-                            "Denominação de Item", width="large"
-                        ),
-                        "Quantidade Total Faturada": st.column_config.TextColumn(
-                            "Quantidade Total Faturada", width="small"
-                        ),
-                        "Preço Total Real (R$)": st.column_config.TextColumn(
-                            "Preço Total Real (R$)", width="medium"
-                        ),
+                        "Ranking": st.column_config.TextColumn("Ranking", width="small"),
+                        "Código Material": st.column_config.TextColumn("Código Material", width="small"),
+                        "Denominação de Item": st.column_config.TextColumn("Denominação de Item", width="large"),
+                        "Quantidade Total Faturada": st.column_config.TextColumn("Quantidade Total Faturada", width="small"),
+                        "Preço Total Real (R$)": st.column_config.TextColumn("Preço Total Real (R$)", width="medium"),
                     },
                 )
     else:
@@ -373,7 +371,6 @@ elif st.session_state.pagina_atual == "Estoques":
     st.title("📋 Relatório Consolidado de Estoque")
 
     if df_estoque is not None:
-        # Detecta se existe coluna de Loja / Divisão ou Centro no arquivo de estoque
         coluna_loja_estoque = None
         for col in ["Divisão", "Centro", "Depósito", "Local"]:
             if col in df_estoque.columns:
@@ -433,7 +430,13 @@ elif st.session_state.pagina_atual == "Estoques":
             .agg({col_qtd: "sum", col_val: "sum"})
             .reset_index()
         )
+        
+        # Ranking por Valor Total em Estoque (do maior valor investido para o menor)
+        resumo_est = resumo_est.sort_values(by=col_val, ascending=False).reset_index(drop=True)
+        resumo_est.insert(0, "Ranking", range(1, len(resumo_est) + 1))
+
         resumo_est.columns = [
+            "Ranking",
             "Código Material",
             "Denominação de Item",
             "Quantidade em Estoque",
@@ -452,18 +455,11 @@ elif st.session_state.pagina_atual == "Estoques":
             use_container_width=True,
             hide_index=True,
             column_config={
-                "Código Material": st.column_config.TextColumn(
-                    "Código Material", width="small"
-                ),
-                "Denominação de Item": st.column_config.TextColumn(
-                    "Denominação de Item", width="large"
-                ),
-                "Quantidade em Estoque": st.column_config.TextColumn(
-                    "Quantidade em Estoque", width="medium"
-                ),
-                "Valor Total em Estoque (R$)": st.column_config.TextColumn(
-                    "Valor Total em Estoque (R$)", width="medium"
-                ),
+                "Ranking": st.column_config.TextColumn("Ranking", width="small"),
+                "Código Material": st.column_config.TextColumn("Código Material", width="small"),
+                "Denominação de Item": st.column_config.TextColumn("Denominação de Item", width="large"),
+                "Quantidade em Estoque": st.column_config.TextColumn("Quantidade em Estoque", width="medium"),
+                "Valor Total em Estoque (R$)": st.column_config.TextColumn("Valor Total em Estoque (R$)", width="medium"),
             },
         )
     else:
