@@ -45,18 +45,22 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
-# Lê os arquivos de forma independente assim que enviados
+# Processamento seguro dos arquivos se enviados
 df_vendas = pd.read_excel(file_vendas) if file_vendas is not None else None
 df_estoque = pd.read_excel(file_estoque) if file_estoque is not None else None
 
 st.markdown("---")
 
 # ==========================================
-# SEÇÃO DE VENDAS (Independente)
+# SEÇÃO DE VENDAS (Sempre visível a estrutura)
 # ==========================================
-if df_vendas is not None:
-    st.header("📈 Análises de Vendas")
+st.header("📈 Análises de Vendas")
 
+tab_v1, tab_v2, tab_v3 = st.tabs(
+    ["Resumo por Grupos", "Média de Vendas por Produto", "Média Preço Interno"]
+)
+
+if df_vendas is not None:
     if "Quantidade faturada" in df_vendas.columns and "Preço interno" in df_vendas.columns:
         df_vendas["Quantidade faturada"] = pd.to_numeric(
             df_vendas["Quantidade faturada"], errors="coerce"
@@ -71,16 +75,9 @@ if df_vendas is not None:
             df_vendas["Quantidade faturada"] * df_vendas["Preço interno"]
         )
 
-    tab_v1, tab_v2, tab_v3 = st.tabs(
-        [
-            "Resumo por Grupos",
-            "Média de Vendas por Produto",
-            "Média Preço Interno",
-        ]
-    )
-
-    with tab_v1:
-        st.subheader("Resumo de Grupos de Mercadorias")
+with tab_v1:
+    st.subheader("Resumo de Grupos de Mercadorias")
+    if df_vendas is not None:
         if "Divisão" in df_vendas.columns:
             divisões = ["TODAS"] + list(
                 df_vendas["Divisão"].dropna().astype(str).unique()
@@ -114,16 +111,13 @@ if df_vendas is not None:
                 "Valor Líquido Total (R$)"
             ].map("R$ {:,.2f}".format)
 
-            # Centralização forçada via column_config
             st.dataframe(
                 resumo_grupo,
                 use_container_width=True,
                 hide_index=True,
                 column_config={
                     "Grupo de Mercadorias": st.column_config.TextColumn(
-                        "Grupo de Mercadorias",
-                        width="medium",
-                        pinned=True,
+                        "Grupo de Mercadorias", width="medium"
                     ),
                     "Valor Líquido Total (R$)": st.column_config.TextColumn(
                         "Valor Líquido Total (R$)", width="medium"
@@ -132,9 +126,14 @@ if df_vendas is not None:
             )
         else:
             st.warning("Colunas de resumo não encontradas no arquivo de Vendas.")
+    else:
+        st.info(
+            "👉 Aguardando o upload do Relatório de Vendas na barra lateral..."
+        )
 
-    with tab_v2:
-        st.subheader("Média de Vendas por Produto")
+with tab_v2:
+    st.subheader("Média de Vendas por Produto")
+    if df_vendas is not None:
         if (
             "Material" in df_vendas.columns
             and "Denominação de item" in df_vendas.columns
@@ -177,9 +176,14 @@ if df_vendas is not None:
                     ),
                 },
             )
+    else:
+        st.info(
+            "👉 Aguardando o upload do Relatório de Vendas na barra lateral..."
+        )
 
-    with tab_v3:
-        st.subheader("Média de Preço Interno por Produto")
+with tab_v3:
+    st.subheader("Média de Preço Interno por Produto")
+    if df_vendas is not None:
         if (
             "Material" in df_vendas.columns
             and "Denominação de item" in df_vendas.columns
@@ -223,13 +227,19 @@ if df_vendas is not None:
                     ),
                 },
             )
+    else:
+        st.info(
+            "👉 Aguardando o upload do Relatório de Vendas na barra lateral..."
+        )
+
+st.markdown("---")
 
 # ==========================================
-# SEÇÃO DE ESTOQUES (Independente)
+# SEÇÃO DE ESTOQUES (Sempre visível a estrutura)
 # ==========================================
+st.header("📋 Análises de Estoque")
+
 if df_estoque is not None:
-    st.header("📋 Análises de Estoque")
-
     col_mat = (
         "Material" if "Material" in df_estoque.columns else df_estoque.columns[0]
     )
@@ -277,7 +287,7 @@ if df_estoque is not None:
 
     st.dataframe(
         resumo_est,
-        use_container_width=True,
+        use_container_width+True,
         hide_index=True,
         column_config={
             "Código Material": st.column_config.TextColumn("Código Material"),
@@ -292,8 +302,7 @@ if df_estoque is not None:
             ),
         },
     )
-
-if df_vendas is None and df_estoque is None:
+else:
     st.info(
-        "👈 Utilize o painel lateral à esquerda para carregar o relatório de Vendas e/ou de Estoques e exibir os dados."
+        "👉 Aguardando o upload do Relatório de Estoques na barra lateral para exibir a tabela consolidada..."
     )
