@@ -33,9 +33,34 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado de navegação se não existir
+# Inicializa o estado de navegação
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
+
+# ==========================================
+# FUNÇÕES COM CACHE PARA LEITURA RÁPIDA
+# ==========================================
+@st.cache_data
+def carregar_vendas(uploaded_file):
+    if uploaded_file is None:
+        return None
+    df = pd.read_excel(uploaded_file)
+    if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
+        df["Quantidade faturada"] = pd.to_numeric(
+            df["Quantidade faturada"], errors="coerce"
+        ).fillna(0)
+        df["Preço interno"] = pd.to_numeric(
+            df["Preço interno"], errors="coerce"
+        ).fillna(0)
+        df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
+    return df
+
+@st.cache_data
+def carregar_estoque(uploaded_file):
+    if uploaded_file is None:
+        return None
+    df = pd.read_excel(uploaded_file)
+    return df
 
 # ==========================================
 # BARRA LATERAL (Upload e Configurações)
@@ -56,13 +81,13 @@ with st.sidebar:
         st.session_state.pagina_atual = "Home"
         st.rerun()
 
-    if st.button("🔄 Limpar Dados"):
+    if st.button("🔄 Limpar Dados e Cache"):
         st.cache_data.clear()
         st.rerun()
 
-# Processamento dos arquivos
-df_vendas = pd.read_excel(file_vendas) if file_vendas is not None else None
-df_estoque = pd.read_excel(file_estoque) if file_estoque is not None else None
+# Carrega os dados usando as funções otimizadas com cache
+df_vendas = carregar_vendas(file_vendas)
+df_estoque = carregar_estoque(file_estoque)
 
 # ==========================================
 # NAVEGAÇÃO ENTRE PÁGINAS (HOME / VENDAS / ESTOQUE)
@@ -98,7 +123,7 @@ if st.session_state.pagina_atual == "Home":
 
     if df_vendas is None and df_estoque is None:
         st.info(
-            "💡 Dica: Faça o upload dos arquivos do SAP na barra lateral esquerda antes de navegar para as análises."
+            "💡 Dica: Faça o upload dos arquivos do SAP na barra lateral esquerda para habilitar os relatórios."
         )
 
 # ==========================================
@@ -108,17 +133,6 @@ elif st.session_state.pagina_atual == "Vendas":
     st.title("📈 Relatório Executivo de Vendas")
 
     if df_vendas is not None:
-        if "Quantidade faturada" in df_vendas.columns and "Preço interno" in df_vendas.columns:
-            df_vendas["Quantidade faturada"] = pd.to_numeric(
-                df_vendas["Quantidade faturada"], errors="coerce"
-            ).fillna(0)
-            df_vendas["Preço interno"] = pd.to_numeric(
-                df_vendas["Preço interno"], errors="coerce"
-            ).fillna(0)
-            df_vendas["Valor líquido"] = (
-                df_vendas["Quantidade faturada"] * df_vendas["Preço interno"]
-            )
-
         tab_v1, tab_v2, tab_v3 = st.tabs(
             [
                 "Resumo por Grupos",
@@ -285,6 +299,7 @@ elif st.session_state.pagina_atual == "Vendas":
             "⚠️ O arquivo de Vendas ainda não foi carregado. Faça o upload na barra lateral."
         )
 
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("⬅️ Voltar ao Menu Principal"):
         st.session_state.pagina_atual = "Home"
         st.rerun()
@@ -367,6 +382,7 @@ elif st.session_state.pagina_atual == "Estoques":
             "⚠️ O arquivo de Estoques ainda não foi carregado. Faça o upload na barra lateral."
         )
 
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("⬅️ Voltar ao Menu Principal"):
         st.session_state.pagina_atual = "Home"
         st.rerun()
