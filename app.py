@@ -27,34 +27,33 @@ st.markdown(
 
 st.title("📊 Dashboard Executivo - Vendas e Estoques SAP")
 st.markdown(
-    "Faça o upload da sua planilha exportada do SAP para gerar os relatórios executivos instantaneamente."
+    "Faça o upload dos relatórios do SAP abaixo para gerar as análises instantaneamente para a gestão."
 )
 
-# Upload do arquivo Excel exportado do SAP
-uploaded_file = st.file_uploader(
-    "Carregar arquivo Excel (.xlsx)", type=["xlsx"]
-)
+# Criando duas colunas para upload separado e organizado para o gerente
+col_up1, col_up2 = st.columns(2)
 
-if uploaded_file is not None:
+with col_up1:
+    st.subheader("1. Relatório de Vendas")
+    file_vendas = st.file_uploader(
+        "Carregar Excel de Vendas (.xlsx)", type=["xlsx"], key="vendas"
+    )
+
+with col_up2:
+    st.subheader("2. Relatório de Estoques")
+    file_estoque = st.file_uploader(
+        "Carregar Excel de Estoques (.xlsx)", type=["xlsx"], key="estoque"
+    )
+
+if file_vendas is not None and file_estoque is not None:
     try:
-        # Lê as abas do Excel de forma segura
-        xls = pd.ExcelFile(uploaded_file)
-
-        # Identifica a aba de Vendas
-        sheet_vendas = (
-            "Vendas" if "Vendas" in xls.sheet_names else xls.sheet_names[0]
-        )
-        df_vendas = pd.read_excel(xls, sheet_name=sheet_vendas)
-
-        # Identifica a aba de Estoques (se existir)
-        df_estoque = None
-        if "Estoques" in xls.sheet_names:
-            df_estoque = pd.read_excel(xls, sheet_name="Estoques")
+        # Lê os dataframes de vendas e estoques enviados
+        df_vendas = pd.read_excel(file_vendas)
+        df_estoque = pd.read_excel(file_estoque)
 
         # ==========================================
         # TRATAMENTO DE VENDAS
         # ==========================================
-        # Garante colunas essenciais e calcula valores equivalentes ao VBA
         if "Quantidade faturada" in df_vendas.columns and "Preço interno" in df_vendas.columns:
             df_vendas["Quantidade faturada"] = pd.to_numeric(
                 df_vendas["Quantidade faturada"], errors="coerce"
@@ -125,60 +124,55 @@ if uploaded_file is not None:
 
         with tab2:
             st.subheader("Controle Consolidado de Estoque")
-            if df_estoque is not None:
-                # Mapeamento baseado na estrutura SAP: Material, Texto breve, Utilização livre (Qtd), Val.utiliz.livre (Valor)
-                col_mat = (
-                    "Material"
-                    if "Material" in df_estoque.columns
-                    else df_estoque.columns[0]
-                )
-                col_desc = (
-                    "Texto breve material"
-                    if "Texto breve material" in df_estoque.columns
-                    else df_estoque.columns[1]
-                )
-                col_qtd = (
-                    "Utilização livre"
-                    if "Utilização livre" in df_estoque.columns
-                    else df_estoque.columns[5]
-                )
-                col_val = (
-                    "Val.utiliz.livre"
-                    if "Val.utiliz.livre" in df_estoque.columns
-                    else df_estoque.columns[6]
-                )
+            # Mapeamento baseado na estrutura SAP: Material, Texto breve, Utilização livre (Qtd), Val.utiliz.livre (Valor)
+            col_mat = (
+                "Material"
+                if "Material" in df_estoque.columns
+                else df_estoque.columns[0]
+            )
+            col_desc = (
+                "Texto breve material"
+                if "Texto breve material" in df_estoque.columns
+                else df_estoque.columns[1]
+            )
+            col_qtd = (
+                "Utilização livre"
+                if "Utilização livre" in df_estoque.columns
+                else df_estoque.columns[5]
+            )
+            col_val = (
+                "Val.utiliz.livre"
+                if "Val.utiliz.livre" in df_estoque.columns
+                else df_estoque.columns[6]
+            )
 
-                df_estoque[col_qtd] = pd.to_numeric(
-                    df_estoque[col_qtd], errors="coerce"
-                ).fillna(0)
-                df_estoque[col_val] = pd.to_numeric(
-                    df_estoque[col_val], errors="coerce"
-                ).fillna(0)
+            df_estoque[col_qtd] = pd.to_numeric(
+                df_estoque[col_qtd], errors="coerce"
+            ).fillna(0)
+            df_estoque[col_val] = pd.to_numeric(
+                df_estoque[col_val], errors="coerce"
+            ).fillna(0)
 
-                resumo_est = (
-                    df_estoque.groupby([col_mat, col_desc])
-                    .agg({col_qtd: "sum", col_val: "sum"})
-                    .reset_index()
-                )
-                resumo_est.columns = [
-                    "Código Material",
-                    "Denominação de Item",
-                    "Quantidade em Estoque",
-                    "Valor Total em Estoque (R$)",
-                ]
+            resumo_est = (
+                df_estoque.groupby([col_mat, col_desc])
+                .agg({col_qtd: "sum", col_val: "sum"})
+                .reset_index()
+            )
+            resumo_est.columns = [
+                "Código Material",
+                "Denominação de Item",
+                "Quantidade em Estoque",
+                "Valor Total em Estoque (R$)",
+            ]
 
-                resumo_est["Quantidade em Estoque"] = resumo_est[
-                    "Quantidade em Estoque"
-                ].apply(lambda x: f"{int(x):,}".replace(",", "."))
-                resumo_est["Valor Total em Estoque (R$)"] = resumo_est[
-                    "Valor Total em Estoque (R$"
-                ].map("R$ {:,.2f}".format)
+            resumo_est["Quantidade em Estoque"] = resumo_est[
+                "Quantidade em Estoque"
+            ].apply(lambda x: f"{int(x):,}".replace(",", "."))
+            resumo_est["Valor Total em Estoque (R$)"] = resumo_est[
+                "Valor Total em Estoque (R$)"
+            ].map("R$ {:,.2f}".format)
 
-                st.dataframe(resumo_est, use_container_width=True, hide_index=True)
-            else:
-                st.info(
-                    "A aba 'Estoques' não foi encontrada no arquivo enviado."
-                )
+            st.dataframe(resumo_est, use_container_width=True, hide_index=True)
 
         with tab3:
             st.subheader("Média de Vendas por Produto")
@@ -247,7 +241,7 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(
-            f"Ocorreu um erro ao processar o arquivo. Verifique se as colunas do SAP correspondem ao esperado. Detalhe: {e}"
+            f"Ocorreu um erro ao processar os arquivos. Verifique se as colunas correspondem ao formato do SAP. Detalhe: {e}"
         )
 else:
-    st.info("👈 Por favor, faça o upload do arquivo Excel do SAP na barra lateral ou acima para começar.")
+    st.info("👆 Por favor, faça o upload de ambos os arquivos (Vendas e Estoques) para liberar todas as abas analíticas.")
