@@ -8,10 +8,15 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual ajustado com cinza mais escuro na direita e identidade da Vonný
+# Estilo visual refinado: Faixa pink no topo, botões em cinza elegante e fundo da direita mais escuro
 st.markdown(
     """
     <style>
+    /* Injeta a faixa pink oficial no topo absoluto da página */
+    header[data-testid="stHeader"] {
+        background-color: #E6007E !important;
+    }
+    
     /* Fundo do painel principal (Lado direito) em cinza mais escuro */
     .main {
         background-color: #EAEAEA !important;
@@ -36,10 +41,10 @@ st.markdown(
         color: #333333;
     }
 
-    /* Botões em rosa bem escuro/magenta */
+    /* Botões estilizados em cinza elegante com texto em branco e negrito */
     .stButton>button {
         width: 100%;
-        background-color: #E6007E !important;
+        background-color: #4A4A4A !important;
         border-radius: 6px;
         height: 48px;
         border: none;
@@ -54,7 +59,7 @@ st.markdown(
     }
     
     .stButton>button:hover {
-        background-color: #C5006B !important;
+        background-color: #333333 !important;
     }
 
     .stButton>button:hover p, .stButton>button:hover span {
@@ -95,11 +100,16 @@ def processar_excel(uploaded_file):
         return None
 
 # ==========================================
-# BARRA LATERAL (Navegação de Perfis)
+# BARRA LATERAL (Com o Logo da Empresa e Navegação)
 # ==========================================
 with st.sidebar:
-    st.header("✨ Vonný | Painel")
+    # Exibe o logo oficial da empresa no topo da barra lateral
+    try:
+        st.image("logo_vonny.png", use_column_width=True)
+    except:
+        st.markdown("### ✨ Vonný Cosméticos")
     
+    st.markdown("---")
     st.markdown("### Selecione o Perfil:")
     if st.button("🏠 Menu Principal"):
         st.session_state.perfil_atual = "Home"
