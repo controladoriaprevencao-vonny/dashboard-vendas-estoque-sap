@@ -63,7 +63,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão para navegação e arquivos persistentes
+# Inicializa o estado da sessão para navegação e arquivos persistentes (Sobrevivem ao F5)
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
 
@@ -104,7 +104,7 @@ def processar_estoque(uploaded_file):
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    # Exibe a logo oficial no topo da barra lateral usando o nome correto do GitHub
+    # Exibe a logo oficial no topo da barra lateral
     try:
         st.image("logo_vonny.png", use_container_width=True)
     except:
@@ -134,8 +134,16 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
-    if st.session_state.df_vendas_fixo is not None or st.session_state.df_estoque_fixo is not None or len(st.session_state.arquivos_admin_fixos) > 0:
-        st.success("✅ Dados carregados na sessão")
+    
+    # Verifica se há dados carregados persistidos na sessão
+    tem_dados = (
+        st.session_state.df_vendas_fixo is not None 
+        or st.session_state.df_estoque_fixo is not None 
+        or len(st.session_state.arquivos_admin_fixos) > 0
+    )
+    
+    if tem_dados:
+        st.success("✅ Dados salvos na sessão")
     else:
         st.warning("⚠️ Nenhum arquivo carregado")
 
@@ -175,7 +183,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`). Eles ficarão salvos e fixos na sessão.")
+    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez. Eles ficam salvos permanentemente na sessão até que você decida apagá-los.")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -187,28 +195,51 @@ elif st.session_state.perfil_atual == "Admin":
 
     if uploaded_files:
         for file in uploaded_files:
+            # Salva no dicionário da sessão para persistir mesmo após F5
             st.session_state.arquivos_admin_fixos[file.name] = {
                 "objeto": file,
                 "df": processar_vendas(file)
             }
-        st.success(f"🎉 {len(uploaded_files)} arquivo(s) processado(s) e fixado(s) com sucesso!")
+        st.success(f"🎉 {len(uploaded_files)} arquivo(s) processado(s) e salvos com sucesso!")
 
     st.markdown("---")
-    st.subheader("📋 Arquivos Atualmente Fixados na Sessão:")
+    st.subheader("📋 Arquivos Atualmente Salvos na Sessão:")
     if len(st.session_state.arquivos_admin_fixos) > 0:
         for nome_arquivo, dados in st.session_state.arquivos_admin_fixos.items():
             qtd_linhas = len(dados["df"]) if dados["df"] is not None else 0
             st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ==========================================
+        # BOTÃO APAGAR (VISÃO ADMIN)
+        # ==========================================
+        with st.expander("🗑️ Botão Apagar - Gerenciar Arquivos"):
+            st.markdown("Selecione qual arquivo deseja remover da sessão:")
+            arquivos_para_apagar = st.multiselect(
+                "Escolha os arquivos para apagar:",
+                options=list(st.session_state.arquivos_admin_fixos.keys()),
+                key="select_apagar_admin"
+            )
+            
+            col_ap1, col_ap2 = st.columns(2)
+            with col_ap1:
+                if st.button("🗑️ Apagar Selecionados", key="btn_apagar_selecionados_admin"):
+                    if arquivos_para_apagar:
+                        for arq in arquivos_para_apagar:
+                            del st.session_state.arquivos_admin_fixos[arq]
+                        st.success("✅ Arquivo(s) selecionado(s) apagado(s) com sucesso!")
+                        st.rerun()
+                    else:
+                        st.warning("Selecione pelo menos um arquivo para apagar.")
+            with col_ap2:
+                if st.button("🗑️ Apagar Todos os Arquivos", key="btn_apagar_todos_admin"):
+                    st.session_state.arquivos_admin_fixos = {}
+                    st.cache_data.clear()
+                    st.success("✅ Todos os arquivos administrativos foram apagados!")
+                    st.rerun()
     else:
         st.info("Nenhum arquivo enviado até o momento.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 Limpar Todos os Arquivos Fixos", key="btn_limpar_admin"):
-        st.session_state.arquivos_admin_fixos = {}
-        st.session_state.df_vendas_fixo = None
-        st.session_state.df_estoque_fixo = None
-        st.cache_data.clear()
-        st.rerun()
 
 # ==========================================
 # 3. VISÃO DOS GERENTES DE PRODUTO
@@ -230,26 +261,52 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo (Estoque à esquerda e Vendas à direita) ou selecione o módulo para análise:")
+        st.markdown("Faça o upload direto dos arquivos abaixo (Estoque à esquerda e Vendas à direita). Eles ficam salvos na sessão mesmo se você atualizar a página (F5):")
 
-        # Seção de Upload para o Gerente invertida: Estoque primeiro, Vendas depois
+        # Seção de Upload para o Gerente
         with st.expander("📂 Fazer Upload das Planilhas (Estoque e Vendas)", expanded=True):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None:
                     st.session_state.df_estoque_fixo = processar_estoque(file_e)
-                    st.success("✅ Estoque carregado com sucesso!")
+                    st.success("✅ Estoque salvo com sucesso!")
             with col_u2:
                 file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
                 if file_v is not None:
                     st.session_state.df_vendas_fixo = processar_vendas(file_v)
-                    st.success("✅ Vendas carregadas com sucesso!")
+                    st.success("✅ Vendas salvas com sucesso!")
+
+        # ==========================================
+        # BOTÃO APAGAR (VISÃO GESTÃO)
+        # ==========================================
+        tem_dados_gestao = (st.session_state.df_estoque_fixo is not None) or (st.session_state.df_vendas_fixo is not None)
+        if tem_dados_gestao:
+            st.markdown("<br>", unsafe_allow_html=True)
+            with st.expander("🗑️ Botão Apagar - Gerenciar Planilhas de Gestão"):
+                st.markdown("Selecione qual base de dados você deseja remover:")
+                opcoes_apagar_gestao = []
+                if st.session_state.df_estoque_fixo is not None:
+                    opcoes_apagar_gestao.append("Planilha de Estoque")
+                if st.session_state.df_vendas_fixo is not None:
+                    opcoes_apagar_gestao.append("Planilha de Vendas")
+                
+                escolhas_apagar = st.multiselect("Selecione o que deseja apagar:", options=opcoes_apagar_gestao, key="select_apagar_gestao")
+                
+                if st.button("🗑️ Confirmar Exclusão Selecionada", key="btn_confirmar_apagar_gestao"):
+                    if escolhas_apagar:
+                        if "Planilha de Estoque" in escolhas_apagar:
+                            st.session_state.df_estoque_fixo = None
+                        if "Planilha de Vendas" in escolhas_apagar:
+                            st.session_state.df_vendas_fixo = None
+                        st.success("✅ Base(s) selecionada(s) apagada(s) com sucesso!")
+                        st.rerun()
+                    else:
+                        st.warning("Selecione pelo menos uma opção para apagar.")
 
         st.markdown("<br>", unsafe_allow_html=True)
         col_g1, col_g2 = st.columns(2)
 
-        # Invertido também nos botões da Home da Gestão: Estoque à esquerda, Vendas à direita
         with col_g1:
             st.markdown("### 📋 Módulo de Estoques")
             if st.button("Entrar em Estoques ➔", key="g_estoque"):
