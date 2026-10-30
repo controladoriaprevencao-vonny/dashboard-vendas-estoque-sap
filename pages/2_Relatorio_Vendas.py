@@ -42,7 +42,7 @@ except Exception:
     pass
 
 st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Visualização de vendas consolidadas e detalhadas com filtros inteligentes de devolução ordenados por Material.")
+st.markdown("Visualização de vendas consolidadas e detalhadas com ordenação precisa por Material e Data.")
 
 @st.cache_data(ttl=300)
 def baixar_vendas():
@@ -51,13 +51,7 @@ def baixar_vendas():
     try:
         file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/vendas_fixo.xlsx")
         if file_res:
-            df = pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
-            
-            # Tratamento de datas para formato DD/MM/AAAA limpo
-            for col in df.columns:
-                if "data" in col.lower():
-                    df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna(df[col])
-            return df
+            return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
     except Exception:
         return None
     return None
@@ -103,7 +97,7 @@ if df_vendas is not None:
 
     st.markdown("---")
 
-    # --- TABELA 1: CONSOLIDADA (Com filtro independente próprio) ---
+    # --- TABELA 1: CONSOLIDADA ---
     st.markdown("### 📊 Visão Consolidada (Agrupada)")
     
     with st.expander("🔍 Filtros específicos da Tabela Consolidada"):
@@ -172,7 +166,6 @@ if df_vendas is not None:
         col_dev_possiveis = ["Devolução", "Devolucao"]
         col_dev_encontrada = next((c for c in col_dev_possiveis if c in df_det_filtrado.columns), None)
         
-        # Variável de controle para saber se o filtro inteligente foi acionado
         filtro_inteligente_ativo = False
 
         if col_dev_encontrada:
@@ -196,15 +189,25 @@ if df_vendas is not None:
             with fd4:
                 st.info("Indisponível.")
 
-    # ORDENAÇÃO: Se o filtro inteligente de devolução estiver ativo, ordena por Material. Caso contrário, ordena por Valor líquido (maior para o menor).
-    if filtro_inteligente_ativo and "Material" in df_det_filtrado.columns:
-        if "Valor líquido" in df_det_filtrado.columns:
-            df_det_filtrado = df_det_filtrado.sort_values(by=["Material", "Valor líquido"], ascending=[True, False])
-        else:
-            df_det_filtrado = df_det_filtrado.sort_values(by="Material", ascending=True)
+    # Identifica coluna de data para ordenação cronológica precisa
+    col_data_encontrada = next((c for c in df_det_filtrado.columns if "data" in c.lower()), None)
+
+    # ORDENAÇÃO
+    if filtro_inteligente_ativo and "Material" in df_det_filtrado.columns and col_data_encontrada:
+        # Cria cópia temporária da data convertida em datetime para ordenar perfeitamente de forma cronológica
+        df_det_filtrado["_data_temp"] = pd.to_datetime(df_det_filtrado[col_data_encontrada], errors="coerce")
+        df_det_filtrado = df_det_filtrado.sort_values(by=["Material", "_data_temp"], ascending=[True, True])
+        df_det_filtrado = df_det_filtrado.drop(columns=["_data_temp"])
+    elif filtro_inteligente_ativo and "Material" in df_det_filtrado.columns:
+        df_det_filtrado = df_det_filtrado.sort_values(by="Material", ascending=True)
     else:
         if "Valor líquido" in df_det_filtrado.columns:
             df_det_filtrado = df_det_filtrado.sort_values(by="Valor líquido", ascending=False)
+
+    # Tratamento final de exibição das datas para o formato DD/MM/AAAA limpo nas células
+    for col in df_det_filtrado.columns:
+        if "data" in col.lower():
+            df_det_filtrado[col] = pd.to_datetime(df_det_filtrado[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna(df_det_filtrado[col])
 
     config_colunas_det = {}
     for col in df_det_filtrado.columns:
