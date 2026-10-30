@@ -86,7 +86,7 @@ def baixar_arquivo_supabase(pasta, nome_arquivo):
 
 def upload_para_supabase(pasta, nome_arquivo, file_buffer):
     if not supabase:
-        return False
+        return False, "Cliente Supabase não inicializado."
     try:
         caminho = f"{pasta}/{nome_arquivo}"
         try:
@@ -100,10 +100,9 @@ def upload_para_supabase(pasta, nome_arquivo, file_buffer):
             file_options={"content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "upsert": "true"}
         )
         st.cache_data.clear()
-        return True
+        return True, ""
     except Exception as e:
-        st.error(f"Erro ao enviar para o Supabase: {e}")
-        return False
+        return False, str(e)
 
 def deletar_do_supabase(pasta, nomes_arquivos):
     if not supabase:
@@ -181,7 +180,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles são salvos com segurança no Supabase.")
+    st.markdown("Selecione ou arraste os arquivos. O envio para a nuvem é automático.")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -191,13 +190,19 @@ elif st.session_state.perfil_atual == "Admin":
     )
 
     if uploaded_files:
-        # Usamos um botão de confirmação para evitar upload automático pesado indesejado
-        if st.button("🚀 Enviar Arquivos Selecionados para a Nuvem", key="btn_enviar_admin"):
-            with st.spinner("Enviando arquivos para o Supabase (isso pode levar alguns segundos devido ao tamanho)..."):
-                for file in uploaded_files:
-                    upload_para_supabase("admin", file.name, file.getvalue())
-            st.success("🎉 Arquivos enviados e salvos na nuvem com sucesso!")
-            st.rerun()
+        with st.spinner("Enviando arquivos automaticamente para o Supabase..."):
+            erros_encontrados = []
+            for file in uploaded_files:
+                sucesso, erro_msg = upload_para_supabase("admin", file.name, file.getvalue())
+                if not sucesso:
+                    erros_encontrados.append((file.name, erro_msg))
+            
+            if erros_encontrados:
+                for nome_arq, msg in erros_encontrados:
+                    st.error(f"❌ Erro ao enviar '{nome_arq}': {msg}")
+            else:
+                st.success("🎉 Arquivos enviados e salvos na nuvem com sucesso!")
+                st.rerun()
 
     st.markdown("---")
     st.subheader("📋 Arquivos Atualmente Salvos no Supabase:")
@@ -260,18 +265,24 @@ elif st.session_state.perfil_atual == "Gerente":
             col_u1, col_u2 = st.columns(2)
             with col_u1:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
-                if file_e is not None and st.button("Enviar Estoque", key="btn_up_est"):
-                    with st.spinner("Enviando estoque..."):
-                        upload_para_supabase("gestao", "estoque_fixo.xlsx", file_e.getvalue())
-                    st.success("✅ Estoque salvo!")
-                    st.rerun()
+                if file_e is not None:
+                    with st.spinner("Enviando estoque automaticamente..."):
+                        sucesso, erro_msg = upload_para_supabase("gestao", "estoque_fixo.xlsx", file_e.getvalue())
+                        if sucesso:
+                            st.success("✅ Estoque salvo!")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Erro ao enviar estoque: {erro_msg}")
             with col_u2:
                 file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
-                if file_v is not None and st.button("Enviar Vendas", key="btn_up_ven"):
-                    with st.spinner("Enviando vendas..."):
-                        upload_para_supabase("gestao", "vendas_fixo.xlsx", file_v.getvalue())
-                    st.success("✅ Vendas salvas!")
-                    st.rerun()
+                if file_v is not None:
+                    with st.spinner("Enviando vendas automaticamente..."):
+                        sucesso, erro_msg = upload_para_supabase("gestao", "vendas_fixo.xlsx", file_v.getvalue())
+                        if sucesso:
+                            st.success("✅ Vendas salvas!")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Erro ao enviar vendas: {erro_msg}")
 
         tem_estoque = "estoque_fixo.xlsx" in lista_gestao
         tem_vendas = "vendas_fixo.xlsx" in lista_gestao
