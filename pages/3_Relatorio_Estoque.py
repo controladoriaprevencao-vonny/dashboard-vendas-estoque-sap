@@ -40,7 +40,7 @@ except Exception:
     pass
 
 st.title("📋 Relatório Consolidado de Estoque")
-st.markdown("Área de análise e filtros avançados do estoque atual, ordenados pela coluna **Val.utiliz.libre** (positivos no topo, do maior para o menor).")
+st.markdown("Área de análise e filtros inteligentes em cascata do estoque atual, ordenados pela coluna **Val.utiliz.libre**.")
 
 @st.cache_data(ttl=300)
 def baixar_estoque():
@@ -57,52 +57,56 @@ def baixar_estoque():
 df_estoque = baixar_estoque()
 
 if df_estoque is not None:
-    st.markdown("### 🔍 Filtros Interativos")
+    st.markdown("### 🔍 Filtros Interativos Inteligentes")
     
-    # 4 colunas para os filtros: Centro/Loja, Material, Grupo e Depósito
     f_col1, f_col2, f_col3, f_col4 = st.columns(4)
-    df_filtrado_est = df_estoque.copy()
-
-    # 1. Filtro por Centro / Loja (Verificando Centro, Divisão e Loja)
+    
+    # Identificação das colunas principais
     colunas_loja_possiveis = ["Centro", "Divisão", "Divisao", "Loja"]
     col_loja_encontrada = next((c for c in colunas_loja_possiveis if c in df_estoque.columns), None)
     
+    col_deposito_possiveis = ["Depósito", "Deposito", "Dep."]
+    col_dep_encontrada = next((c for c in col_deposito_possiveis if c in df_estoque.columns), None)
+
+    # --- FILTRO 1: CENTRO / LOJA ---
+    df_f1 = df_estoque.copy()
     if col_loja_encontrada:
-        lojas_est = sorted(df_estoque[col_loja_encontrada].dropna().astype(str).unique())
+        lojas_opcoes = sorted(df_f1[col_loja_encontrada].dropna().astype(str).unique())
         with f_col1:
-            loja_escolhida_est = st.multiselect("Centro / Loja", options=lojas_est, key="filtro_loja_est")
+            loja_escolhida_est = st.multiselect("Centro / Loja", options=lojas_opcoes, key="filtro_loja_est")
         if loja_escolhida_est:
-            df_filtrado_est = df_filtrado_est[df_filtrado_est[col_loja_encontrada].astype(str).isin(loja_escolhida_est)]
+            df_f1 = df_f1[df_f1[col_loja_encontrada].astype(str).isin(loja_escolhida_est)]
     else:
         with f_col1:
             st.info("Coluna 'Centro' não encontrada.")
 
-    # 2. Filtro por Material
+    # --- FILTRO 2: MATERIAL (Considera o filtro de Loja) ---
+    df_f2 = df_f1.copy()
     if "Material" in df_estoque.columns:
-        materiais_est = sorted(df_estoque["Material"].dropna().astype(str).unique())
+        materiais_opcoes = sorted(df_f2["Material"].dropna().astype(str).unique())
         with f_col2:
-            material_escolhido_est = st.multiselect("Material", options=materiais_est, key="filtro_mat_est")
+            material_escolhido_est = st.multiselect("Material", options=materiais_opcoes, key="filtro_mat_est")
         if material_escolhido_est:
-            df_filtrado_est = df_filtrado_est[df_filtrado_est["Material"].astype(str).isin(material_escolhido_est)]
+            df_f2 = df_f2[df_f2["Material"].astype(str).isin(material_escolhido_est)]
 
-    # 3. Filtro por Grupo de Mercadorias
+    # --- FILTRO 3: GRUPO DE MERCADORIAS (Considera Loja e Material) ---
+    df_f3 = df_f2.copy()
     if "Grupo de mercadorias" in df_estoque.columns:
-        grupos_est = sorted(df_estoque["Grupo de mercadorias"].dropna().astype(str).unique())
+        grupos_opcoes = sorted(df_f3["Grupo de mercadorias"].dropna().astype(str).unique())
         with f_col3:
-            grupo_escolhido_est = st.multiselect("Grupo de Mercadorias", options=grupos_est, key="filtro_grupo_est")
+            grupo_escolhido_est = st.multiselect("Grupo de Mercadorias", options=grupos_opcoes, key="filtro_grupo_est")
         if grupo_escolhido_est:
-            df_filtrado_est = df_filtrado_est[df_filtrado_est["Grupo de mercadorias"].astype(str).isin(grupo_escolhido_est)]
+            df_f3 = df_f3[df_f3["Grupo de mercadorias"].astype(str).isin(grupo_escolhido_est)]
 
-    # 4. Filtro por Depósito (Inteiros limpos)
-    col_deposito_possiveis = ["Depósito", "Deposito", "Dep."]
-    col_dep_encontrada = next((c for c in col_deposito_possiveis if c in df_estoque.columns), None)
-    
+    # --- FILTRO 4: DEPÓSITO (Considera Loja, Material e Grupo de Mercadorias) ---
+    df_filtrado_est = df_f3.copy()
     if col_dep_encontrada:
-        depositos_est = sorted(
-            [str(int(x)) for x in pd.to_numeric(df_estoque[col_dep_encontrada].dropna(), errors="coerce").unique() if pd.notna(x)]
+        # Extrai apenas os depósitos disponíveis com base nos filtros anteriores
+        depositos_opcoes = sorted(
+            [str(int(x)) for x in pd.to_numeric(df_filtrado_est[col_dep_encontrada].dropna(), errors="coerce").unique() if pd.notna(x)]
         )
         with f_col4:
-            dep_escolhido_est = st.multiselect("Depósito", options=depositos_est, key="filtro_dep_est")
+            dep_escolhido_est = st.multiselect("Depósito", options=depositos_opcoes, key="filtro_dep_est")
         
         if dep_escolhido_est:
             df_filtrado_est = df_filtrado_est[
