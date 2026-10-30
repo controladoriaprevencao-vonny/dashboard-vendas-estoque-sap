@@ -55,11 +55,50 @@ if "pagina_atual" not in st.session_state:
 # FUNÇÕES DE TRATAMENTO E SUPABASE
 # ==========================================
 def limpar_nome_arquivo(nome):
-    """Remove acentos, espaços e caracteres especiais para evitar erro no Supabase"""
     nfkd_form = unicodedata.normalize('NFKD', nome)
     texto_sem_acento = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
-    # Substitui espaços por underline
     return texto_sem_acento.replace(" ", "_")
+
+def processar_vendas_consolidado(file_bytes):
+    if file_bytes is None:
+        return None
+    try:
+        df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+        
+        # Converte colunas numéricas
+        if "Quantidade faturada" in df.columns:
+            df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
+        if "Preço interno" in df.columns:
+            df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
+            
+        if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
+            df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
+        
+        # Se contiver Divisão e Material, consolida somando quantidades e valores líquidos
+        if "Divisão" in df.columns and "Material" in df.columns:
+            colunas_agrupamento = ["Divisão", "Material"]
+            
+            # Se houver descrição do item, mantemos pegando o primeiro valor válido
+            colunas_soma = ["Quantidade faturada"]
+            if "Valor líquido" in df.columns:
+                colunas_soma.append("Valor líquido")
+            if "Subtotal 1" in df.columns:
+                df["Subtotal 1"] = pd.to_numeric(df["Subtotal 1"], errors="coerce").fillna(0)
+                colunas_soma.append("Subtotal 1")
+
+            agg_dict = {col: "sum" for col in colunas_soma}
+            
+            # Se existir descrição do item, mantém a primeira string encontrada
+            if "Denominação de item" in df.columns:
+                agg_dict["Denominação de item"] = "first"
+            if "Grupo de mercadorias" in df.columns:
+                agg_dict["Grupo de mercadorias"] = "first"
+
+            df = df.groupby(colunas_agrupamento, as_index=False).agg(agg_dict)
+            
+        return df
+    except Exception as e:
+        return None
 
 @st.cache_data(ttl=300)
 def listar_nomes_arquivos_supabase(pasta):
@@ -81,16 +120,12 @@ def baixar_arquivo_supabase(pasta, nome_arquivo):
         caminho = f"{pasta}/{nome_arquivo}"
         file_res = supabase.storage.from_(BUCKET_NOME).download(caminho)
         if file_res:
-            df = pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
-            if pasta == "admin":
-                if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
-                    df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
-                    df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
-                    df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
-            return df
+            if "vendas" in nome_arquivo.lower() or pasta == "admin":
+                return processar_vendas_consolidado(file_res)
+            else:
+                return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
     except Exception:
         return None
-    return None
 
 def upload_para_supabase(pasta, nome_arquivo, file_buffer):
     if not supabase:
@@ -189,7 +224,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste os arquivos. O envio para a nuvem é automático (acentos e espaços são tratados automaticamente).")
+    st.markdown("Selecione ou arraste os arquivos. O envio para a nuvem é automático.")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
