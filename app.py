@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-# Configuração da página web com o ícone personalizado
+# Configuração da página web
 st.set_page_config(
     page_title="Dashboard Executivo - Vonný",
     page_icon="icone.png",
@@ -12,36 +12,31 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* Faixa pink oficial no topo absoluto da página */
+    /* Faixa pink no topo da página */
     header[data-testid="stHeader"] {
         background-color: #E6007E !important;
     }
     
-    /* Fundo do painel principal (Lado direito) em cinza claro sofisticado */
+    /* Fundo do painel principal em cinza claro */
     .main {
         background-color: #F4F4F6 !important;
         color: #2C2C2C;
     }
     
-    /* Barra lateral em tom rosa claro da marca */
+    /* Barra lateral em tom rosa claro */
     section[data-testid="stSidebar"] {
         background-color: #FFE6EE !important;
         border-right: 1px solid #F5CCD8;
     }
     
-    /* Títulos e cabeçalhos em rosa escuro/magenta */
+    /* Títulos em magenta da marca */
     h1, h2, h3 {
         color: #C5006B !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         font-weight: 700;
     }
     
-    /* Textos gerais do painel */
-    p, span, label, div {
-        color: #333333;
-    }
-
-    /* Botões estilizados com padrão limpo e elegante */
+    /* Botões elegantes */
     .stButton>button {
         width: 100%;
         background-color: #FFFFFF !important;
@@ -63,7 +58,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão para navegação e arquivos persistentes
+# Inicializa o estado da sessão
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
 
@@ -79,9 +74,7 @@ if "df_vendas_fixo" not in st.session_state:
 if "df_estoque_fixo" not in st.session_state:
     st.session_state.df_estoque_fixo = None
 
-# ==========================================
-# FUNÇÃO DE LEITURA COMPATÍVEL (.XLSX / .XLSM)
-# ==========================================
+# Função de leitura compatível (.xlsx / .xlsm)
 @st.cache_data
 def processar_excel(uploaded_file):
     if uploaded_file is None:
@@ -93,29 +86,25 @@ def processar_excel(uploaded_file):
         return None
 
 # ==========================================
-# BARRA LATERAL (Navegação de Perfis)
+# BARRA LATERAL
 # ==========================================
 with st.sidebar:
-    # Exibição segura do logo (se o arquivo logo.png estiver na pasta)
-    try:
-        st.image("logo.png", use_column_width=True)
-    except Exception:
-        st.markdown("<h2 style='color: #E6007E; text-align: center;'>VONNÝ</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; font-size: 12px; color: #666;'>COSMÉTICOS</p>", unsafe_allow_html=True)
+    st.markdown("<h2 style='color: #E6007E; text-align: center;'>VONNÝ</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 12px; color: #666;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
     st.markdown("---")
     st.markdown("### Selecione o Perfil:")
     
-    if st.button("🏠 Menu Principal"):
+    if st.button("🏠 Menu Principal", key="nav_home"):
         st.session_state.perfil_atual = "Home"
         st.session_state.pagina_atual = "Home"
         st.rerun()
         
-    if st.button("🛠️ Visão Administrativa"):
+    if st.button("🛠️ Visão Administrativa", key="nav_admin"):
         st.session_state.perfil_atual = "Admin"
         st.rerun()
         
-    if st.button("📦 Visão Gestão / Produtos"):
+    if st.button("📦 Visão Gestão / Produtos", key="nav_gerente"):
         st.session_state.perfil_atual = "Gerente"
         st.session_state.pagina_atual = "Home"
         st.rerun()
@@ -140,14 +129,14 @@ if st.session_state.perfil_atual == "Home":
     with col1:
         st.markdown("### 🛠️ Visão Administrativa")
         st.markdown("Área restrita para upload múltiplo de planilhas (`.xlsx` e `.xlsm`) e fixação de bases.")
-        if st.button("Acessar Administrativo ➔", key="btn_admin"):
+        if st.button("Acessar Administrativo ➔", key="btn_admin_home"):
             st.session_state.perfil_atual = "Admin"
             st.rerun()
             
     with col2:
         st.markdown("### 📦 Visão Gerentes de Produto")
         st.markdown("Área executiva para análise interativa dos relatórios de vendas, estoques e indicadores.")
-        if st.button("Acessar Gestão ➔", key="btn_gerente"):
+        if st.button("Acessar Gestão ➔", key="btn_gerente_home"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
             st.rerun()
@@ -157,7 +146,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`). Eles ficarão salvos e fixos na sessão.")
+    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`).")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -185,7 +174,7 @@ elif st.session_state.perfil_atual == "Admin":
         st.info("Nenhum arquivo enviado até o momento.")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 Limpar Todos os Arquivos Fixos"):
+    if st.button("🔄 Limpar Todos os Arquivos Fixos", key="btn_limpar"):
         st.session_state.arquivos_admin_fixos = {}
         st.cache_data.clear()
         st.rerun()
@@ -198,13 +187,13 @@ elif st.session_state.perfil_atual == "Gerente":
     with st.sidebar:
         st.markdown("---")
         st.markdown("### 🧭 Módulos Gerenciais")
-        if st.button("📊 Menu Principal Gestão"):
+        if st.button("📊 Menu Principal Gestão", key="sub_home"):
             st.session_state.pagina_atual = "Home"
             st.rerun()
-        if st.button("📈 Módulo de Vendas"):
+        if st.button("📈 Módulo de Vendas", key="sub_vendas"):
             st.session_state.pagina_atual = "Vendas"
             st.rerun()
-        if st.button("📋 Módulo de Estoques"):
+        if st.button("📋 Módulo de Estoques", key="sub_estoques"):
             st.session_state.pagina_atual = "Estoques"
             st.rerun()
 
