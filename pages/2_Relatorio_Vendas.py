@@ -40,7 +40,7 @@ except Exception:
     pass
 
 st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Visualização consolidada de vendas por Loja e Material, ordenada rigorosamente pelos maiores valores líquidos.")
+st.markdown("Visualização de vendas consolidadas e detalhadas por Loja e Material, com ordenação por maiores valores líquidos.")
 
 @st.cache_data(ttl=300)
 def baixar_vendas():
@@ -49,7 +49,13 @@ def baixar_vendas():
     try:
         file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/vendas_fixo.xlsx")
         if file_res:
-            return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
+            df = pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
+            
+            # Tratamento de datas para formato DD/MM/AAAA limpo
+            for col in df.columns:
+                if "data" in col.lower():
+                    df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna(df[col])
+            return df
     except Exception:
         return None
     return None
@@ -91,25 +97,52 @@ if df_vendas is not None:
         total_val = df_filtrado["Valor líquido"].sum() if "Valor líquido" in df_filtrado.columns else 0
         st.metric("💰 Valor Líquido Total (Filtrado)", f"R$ {total_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-    # ORDENAÇÃO EXCLUSIVA PELA COLUNA "Valor líquido" (Do maior para o menor)
-    if "Valor líquido" in df_filtrado.columns:
-        df_filtrado = df_filtrado.sort_values(by="Valor líquido", ascending=False)
-
+    # --- TABELA 1: CONSOLIDADA ---
     st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 📊 Visão Consolidada (Agrupada)")
     
-    # Configuração de colunas para abranger Preço, Valor, Subtotal e Quantidades
-    config_colunas = {}
-    for col in df_filtrado.columns:
+    # Identifica colunas numéricas para somar e colunas de texto para agrupar
+    colunas_agrupamento = [c for c in ["Divisão", "Material", "Denominação de item", "Grupo de mercadorias"] if c in df_filtrado.columns]
+    colunas_soma = [c for c in ["Quantidade faturada", "Valor líquido", "Subtotal 1", "Preço interno"] if c in df_filtrado.columns]
+    
+    if colunas_agrupamento and colunas_soma:
+        # Consolida somando os valores e quantidades por Loja e Material
+        df_consolidado = df_filtrado.groupby(colunas_agrupamento, as_index=False)[colunas_soma].sum()
+    else:
+        df_consolidado = df_filtrado.copy()
+
+    # Ordena pelos maiores valores líquidos
+    if "Valor líquido" in df_consolidado.columns:
+        df_consolidado = df_consolidado.sort_values(by="Valor líquido", ascending=False)
+
+    # Configuração de colunas (Formatando R$ e separadores de milhar)
+    config_colunas_cons = {}
+    for col in df_consolidado.columns:
         col_lower = col.lower()
         if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
-            config_colunas[col] = st.column_config.NumberColumn(
-                col, format="R$ %.2f", help="Valores monetários"
-            )
+            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="R$ %.2f")
         elif "quantidade" in col_lower or "utiliz" in col_lower:
-            config_colunas[col] = st.column_config.NumberColumn(
-                col, format="%,.0f", help="Quantidades"
-            )
+            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="%,.0f")
 
-    st.dataframe(df_filtrado, use_container_width=True, column_config=config_colunas)
+    st.dataframe(df_consolidado, use_container_width=True, column_config=config_colunas_cons)
+
+    # --- TABELA 2: COMPLETA / SEM CONSOLIDAÇÃO ---
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("### 📋 Visão Completa (Detalhada / Sem Consolidação)")
+    
+    df_detalhado = df_filtrado.copy()
+    if "Valor líquido" in df_detalhado.columns:
+        df_detalhado = df_detalhado.sort_values(by="Valor líquido", ascending=False)
+
+    config_colunas_det = {}
+    for col in df_detalhado.columns:
+        col_lower = col.lower()
+        if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
+            config_colunas_det[col] = st.column_config.NumberColumn(col, format="R$ %.2f")
+        elif "quantidade" in col_lower or "utiliz" in col_lower:
+            config_colunas_det[col] = st.column_config.NumberColumn(col, format="%,.0f")
+
+    st.dataframe(df_detalhado, use_container_width=True, column_config=config_colunas_det)
+
 else:
     st.warning("⚠️ Nenhuma planilha de Vendas encontrada no Supabase. Vá até a Central de Upload para enviar uma.")
