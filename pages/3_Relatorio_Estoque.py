@@ -40,7 +40,7 @@ except Exception:
     pass
 
 st.title("📋 Relatório Consolidado de Estoque")
-st.markdown("Área de análise e filtros avançados do estoque atual, ordenados por maiores valores[cite: 4, 6].")
+st.markdown("Área de análise e filtros avançados do estoque atual, ordenados pela coluna **Val.utiliz.libre** (positivos no topo, do maior para o menor).")
 
 @st.cache_data(ttl=300)
 def baixar_estoque():
@@ -95,11 +95,20 @@ if df_estoque is not None:
         with f_col4:
             st.info("Coluna 'Depósito' não encontrada.")
 
-    # ORDENAÇÃO AUTOMÁTICA: Maiores valores ou quantidades no topo por padrão[cite: 6]
-    colunas_ordenacao = ["Valor Total", "Valor líquido", "Quantidade", "Quantidade Total"]
-    col_encontrada = next((c for c in colunas_ordenacao if c in df_filtrado_est.columns), None)
-    if col_encontrada:
-        df_filtrado_est = df_filtrado_est.sort_values(by=col_encontrada, ascending=False)
+    # ORDENAÇÃO EXCLUSIVA: Coluna "Val.utiliz.libre" (Positivos primeiro, do maior para o menor)
+    col_alvo = "Val.utiliz.libre"
+    if col_alvo in df_filtrado_est.columns:
+        # Converte para numérico caso venha como texto
+        df_filtrado_est[col_alvo] = pd.to_numeric(df_filtrado_est[col_alvo], errors="coerce").fillna(0)
+        
+        # Cria uma coluna auxiliar para priorizar positivos (>= 0) em cima dos negativos (< 0)
+        df_filtrado_est["_prioridade"] = df_filtrado_est[col_alvo].apply(lambda x: 1 if x >= 0 else 0)
+        
+        # Ordena: primeiro pela prioridade (1 em cima, 0 embaixo) e depois pelo valor descrescente
+        df_filtrado_est = df_filtrado_est.sort_values(by=["_prioridade", col_alvo], ascending=[False, False])
+        
+        # Remove a coluna auxiliar para não poluir a tabela exibida
+        df_filtrado_est = df_filtrado_est.drop(columns=["_prioridade"])
 
     st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
     st.markdown("<br>", unsafe_allow_html=True)
