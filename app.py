@@ -105,8 +105,8 @@ def processar_excel(uploaded_file):
 with st.sidebar:
     # Exibe o logo oficial da empresa no topo da barra lateral
     try:
-        st.image("logo_vonny.png", use_column_width=True)
-    except:
+        st.image("logo.png", use_column_width=True)
+    except Exception:
         st.markdown("### ✨ Vonný Cosméticos")
     
     st.markdown("---")
