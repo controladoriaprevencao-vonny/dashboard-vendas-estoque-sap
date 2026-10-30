@@ -8,33 +8,53 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual corporativo e personalizado com a identidade da Vonný
+# Estilo visual corporativo e personalizado com a identidade da Vonný (Tema Sofisticado)
 st.markdown(
     """
     <style>
+    /* Fundo principal da aplicação */
     .main {
-        background-color: #fcfbfa;
+        background-color: #121212;
+        color: #E0E0E0;
     }
+    
+    /* Barra lateral */
+    section[data-testid="stSidebar"] {
+        background-color: #1A1A1A;
+        border-right: 1px solid #2A2A2A;
+    }
+    
+    /* Títulos e subtítulos */
     h1, h2, h3 {
-        color: #2C2C2C;
+        color: #F5F0EB !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
+    
+    /* Textos gerais */
+    p, span, label, div {
+        color: #CCCCCC;
+    }
+
+    /* Botões personalizados com o tom sofisticado da marca */
     .stButton>button {
         width: 100%;
-        background-color: #2C2C2C;
-        color: white;
-        font-weight: 500;
+        background-color: #D4A373;
+        color: #121212;
+        font-weight: 600;
         border-radius: 6px;
         height: 48px;
         border: none;
         transition: 0.3s;
     }
+    
     .stButton>button:hover {
-        background-color: #D4A373;
-        color: white;
+        background-color: #FAEDCD;
+        color: #121212;
     }
-    .css-1d391kg {
-        background-color: #f4f1ea;
+    
+    /* Cartões / Containers */
+    div.stMarkdown {
+        color: #E0E0E0;
     }
     </style>
 """,
