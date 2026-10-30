@@ -24,43 +24,19 @@ if AMBIENTE_STAGING:
 
 st.title("📊 Dashboard Executivo - Vonný")
 st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase.")
+st.markdown("Utilize o menu lateral esquerdo para navegar entre os módulos do sistema:")
 
-# Criando as abas profissionais do sistema
-tab_home, tab_upload, tab_vendas, tab_estoque, tab_ativos = st.tabs([
-    "🏠 Início", 
-    "📤 Central de Uploads", 
-    "📈 Relatório de Vendas", 
-    "📦 Relatório de Estoque", 
-    "🎨 Imagens e Ativos"
-])
+st.markdown("<br>", unsafe_allow_html=True)
 
-with tab_home:
-    st.markdown("### Bem-vindo ao Painel Principal")
-    st.markdown("Utilize as abas acima para navegar instantaneamente entre os módulos do sistema sem nenhum risco de erro de carregamento.")
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.info("📤 **Central de Uploads:** Envie e gerencie planilhas administrativas, de estoque e vendas.")
-    with col2:
-        st.info("📊 **Relatórios:** Consulte dados consolidados e aplique filtros por loja e material.")
+# Definindo as páginas de forma oficial e segura para o Streamlit
+paginas = {
+    "Navegação": [
+        st.Page("pages/1_Upload_e_Formatacao.py", title="Central de Uploads", icon="📤"),
+        st.Page("pages/2_Relatorio_Vendas.py", title="Relatório de Vendas", icon="📈"),
+        st.Page("pages/3_Relatorio_Estoque.py", title="Relatório de Estoque", icon="📦"),
+        st.Page("pages/4_Imagens_e_Ativos.py", title="Imagens e Ativos", icon="🎨"),
+    ]
+}
 
-with tab_upload:
-    st.header("📤 Central de Uploads e Formatação")
-    st.write("Insira aqui o código do seu arquivo `1_Upload_e_Formatacao.py`")
-    # Cole aqui o código correspondente à sua página de uploads
-
-with tab_vendas:
-    st.header("📈 Relatório de Vendas")
-    st.write("Insira aqui o código do seu arquivo `2_Relatorio_Vendas.py`")
-    # Cole aqui o código correspondente à sua página de vendas
-
-with tab_estoque:
-    st.header("📦 Relatório de Estoque")
-    st.write("Insira aqui o código do seu arquivo `3_Relatorio_Estoque.py`")
-    # Cole aqui o código correspondente à sua página de estoque
-
-with tab_ativos:
-    st.header("🎨 Imagens e Ativos")
-    st.write("Insira aqui o código do seu arquivo `4_Imagens_e_Ativos.py`")
-    # Cole aqui o código correspondente à sua página de ativos
+pg = st.navigation(paginas)
+pg.run()
