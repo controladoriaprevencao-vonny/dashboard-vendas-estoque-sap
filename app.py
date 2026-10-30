@@ -8,39 +8,39 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual corporativo e personalizado com a identidade da Vonný (Tema Sofisticado)
+# Estilo visual corporativo baseado na identidade da Vonný (Clean, Minimalista e Sofisticado)
 st.markdown(
     """
     <style>
-    /* Fundo principal da aplicação */
+    /* Fundo principal da aplicação em tom off-white limpo */
     .main {
-        background-color: #121212;
-        color: #E0E0E0;
+        background-color: #FAF8F5;
+        color: #2C2C2C;
     }
     
-    /* Barra lateral */
+    /* Barra lateral em tom creme suave e elegante */
     section[data-testid="stSidebar"] {
-        background-color: #1A1A1A;
-        border-right: 1px solid #2A2A2A;
+        background-color: #F2EFE9;
+        border-right: 1px solid #E5E0D8;
     }
     
-    /* Títulos e subtítulos */
+    /* Títulos e subtítulos com a cor corporativa refinada */
     h1, h2, h3 {
-        color: #F5F0EB !important;
+        color: #1A1A1A !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
     
     /* Textos gerais */
     p, span, label, div {
-        color: #CCCCCC;
+        color: #4A4A4A;
     }
 
     /* Botões personalizados com o tom sofisticado da marca */
     .stButton>button {
         width: 100%;
-        background-color: #D4A373;
-        color: #121212;
-        font-weight: 600;
+        background-color: #2C2C2C;
+        color: #FFFFFF;
+        font-weight: 500;
         border-radius: 6px;
         height: 48px;
         border: none;
@@ -48,13 +48,8 @@ st.markdown(
     }
     
     .stButton>button:hover {
-        background-color: #FAEDCD;
+        background-color: #D4A373;
         color: #121212;
-    }
-    
-    /* Cartões / Containers */
-    div.stMarkdown {
-        color: #E0E0E0;
     }
     </style>
 """,
