@@ -77,10 +77,20 @@ if "df_estoque_fixo" not in st.session_state:
 # FUNÇÕES COM CACHE PARA LEITURA RÁPIDA
 # ==========================================
 @st.cache_data
-def processar_excel(uploaded_file):
+def processar_vendas(uploaded_file):
     if uploaded_file is None:
         return None
-    # Lê suportando tanto .xlsx quanto .xlsm
+    df = pd.read_excel(uploaded_file, engine="openpyxl")
+    if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
+        df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
+        df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
+        df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
+    return df
+
+@st.cache_data
+def processar_estoque(uploaded_file):
+    if uploaded_file is None:
+        return None
     df = pd.read_excel(uploaded_file, engine="openpyxl")
     return df
 
@@ -109,8 +119,8 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
-    if len(st.session_state.arquivos_admin_fixos) > 0:
-        st.success(f"✅ {len(st.session_state.arquivos_admin_fixos)} arquivo(s) carregado(s)")
+    if st.session_state.df_vendas_fixo is not None or st.session_state.df_estoque_fixo is not None or len(st.session_state.arquivos_admin_fixos) > 0:
+        st.success("✅ Dados carregados na sessão")
     else:
         st.warning("⚠️ Nenhum arquivo carregado")
 
@@ -133,7 +143,7 @@ if st.session_state.perfil_atual == "Home":
             
     with col2:
         st.markdown("### 📦 Visão Gerentes de Produto")
-        st.markdown("Área executiva para análise interativa dos relatórios de vendas, estoques e filtros por loja.")
+        st.markdown("Área executiva para upload individual de planilhas de Vendas/Estoque e análise interativa.")
         if st.button("Acessar Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
@@ -158,7 +168,7 @@ elif st.session_state.perfil_atual == "Admin":
         for file in uploaded_files:
             st.session_state.arquivos_admin_fixos[file.name] = {
                 "objeto": file,
-                "df": processar_excel(file)
+                "df": processar_vendas(file)
             }
         st.success(f"🎉 {len(uploaded_files)} arquivo(s) processado(s) e fixado(s) com sucesso!")
 
@@ -174,6 +184,8 @@ elif st.session_state.perfil_atual == "Admin":
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🔄 Limpar Todos os Arquivos Fixos", key="btn_limpar_admin"):
         st.session_state.arquivos_admin_fixos = {}
+        st.session_state.df_vendas_fixo = None
+        st.session_state.df_estoque_fixo = None
         st.cache_data.clear()
         st.rerun()
 
@@ -197,7 +209,21 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Selecione abaixo o módulo que deseja analisar:")
+        st.markdown("Faça o upload direto dos arquivos de Vendas e Estoque abaixo ou selecione o módulo para análise:")
+
+        # Seção de Upload para o Gerente
+        with st.expander("📂 Fazer Upload das Planilhas (Vendas e Estoque)", expanded=True):
+            col_u1, col_u2 = st.columns(2)
+            with col_u1:
+                file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
+                if file_v is not None:
+                    st.session_state.df_vendas_fixo = processar_vendas(file_v)
+                    st.success("✅ Vendas carregadas com sucesso!")
+            with col_u2:
+                file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
+                if file_e is not None:
+                    st.session_state.df_estoque_fixo = processar_estoque(file_e)
+                    st.success("✅ Estoque carregado com sucesso!")
 
         st.markdown("<br>", unsafe_allow_html=True)
         col_g1, col_g2 = st.columns(2)
@@ -216,8 +242,14 @@ elif st.session_state.perfil_atual == "Gerente":
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
-        st.info("💡 Módulo aguardando definição de cruzamento com os arquivos administrativos.")
+        if st.session_state.df_vendas_fixo is not None:
+            st.dataframe(st.session_state.df_vendas_fixo, use_container_width=True)
+        else:
+            st.warning("⚠️ Nenhuma planilha de Vendas carregada. Utilize a seção de upload na página inicial da Gestão ou na Visão Administrativa.")
 
     elif st.session_state.pagina_atual == "Estoques":
         st.title("📋 Relatório Consolidado de Estoque")
-        st.info("💡 Módulo aguardando definição de cruzamento com os arquivos administrativos.")
+        if st.session_state.df_estoque_fixo is not None:
+            st.dataframe(st.session_state.df_estoque_fixo, use_container_width=True)
+        else:
+            st.warning("⚠️ Nenhuma planilha de Estoque carregada. Utilize a seção de upload na página inicial da Gestão ou na Visão Administrativa.")
