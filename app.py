@@ -104,9 +104,9 @@ def processar_estoque(uploaded_file):
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    # Exibe a logo oficial no topo da barra lateral usando o nome exato do arquivo no GitHub
+    # Exibe a logo oficial no topo da barra lateral com nome simples
     try:
-        st.image("LOGO-VONNY2025-cabecalho-r98vmxv319emgxxr1r5bl4bgfroxugi3ti5lj0qnqm.png", use_container_width=True)
+        st.image("logo.png", use_container_width=True)
     except:
         st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
