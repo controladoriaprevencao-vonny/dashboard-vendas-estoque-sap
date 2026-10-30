@@ -18,30 +18,42 @@ def init_supabase():
 supabase: Client = init_supabase()
 
 st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Dados consolidados por Loja e Material com filtros interativos.")
+st.markdown("Visualização consolidada de vendas por Loja e Material, equipada com filtros avançados e métricas financeiras.")
 
 def processar_vendas_consolidado(file_bytes):
     if file_bytes is None:
         return None
     try:
         df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+        
         if "Quantidade faturada" in df.columns:
             df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
         if "Preço interno" in df.columns:
             df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
+            
         if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
             df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
         
         if "Divisão" in df.columns and "Material" in df.columns:
-            agg_dict = {"Quantidade faturada": "sum"}
+            colunas_agrupamento = ["Divisão", "Material"]
+            colunas_soma = ["Quantidade faturada"]
             if "Valor líquido" in df.columns:
-                agg_dict["Valor líquido"] = "sum"
+                colunas_soma.append("Valor líquido")
+            if "Subtotal 1" in df.columns:
+                df["Subtotal 1"] = pd.to_numeric(df["Subtotal 1"], errors="coerce").fillna(0)
+                colunas_soma.append("Subtotal 1")
+
+            agg_dict = {col: "sum" for col in colunas_soma}
+            
             if "Denominação de item" in df.columns:
                 agg_dict["Denominação de item"] = "first"
             if "Grupo de mercadorias" in df.columns:
                 agg_dict["Grupo de mercadorias"] = "first"
+            if "Data fixação preço" in df.columns:
+                agg_dict["Data fixação preço"] = "first"
+
+            df = df.groupby(colunas_agrupamento, as_index=False).agg(agg_dict)
             
-            df = df.groupby(["Divisão", "Material"], as_index=False).agg(agg_dict)
         return df
     except Exception:
         return None
@@ -63,35 +75,38 @@ df_vendas = baixar_vendas()
 if df_vendas is not None:
     st.markdown("### 🔍 Filtros Interativos")
     f1, f2, f3 = st.columns(3)
+    
     df_filtrado = df_vendas.copy()
     
     if "Divisão" in df_vendas.columns:
         lojas = sorted(df_vendas["Divisão"].dropna().astype(str).unique())
         with f1:
-            l_sel = st.multiselect("Filtrar por Loja (Divisão)", options=lojas)
-        if l_sel:
-            df_filtrado = df_filtrado[df_filtrado["Divisão"].astype(str).isin(l_sel)]
-            
+            loja_selecionada = st.multiselect("Filtrar por Loja (Divisão)", options=lojas, key="filtro_loja_vendas")
+        if loja_selecionada:
+            df_filtrado = df_filtrado[df_filtrado["Divisão"].astype(str).isin(loja_selecionada)]
+    
     if "Material" in df_vendas.columns:
         materiais = sorted(df_vendas["Material"].dropna().astype(str).unique())
         with f2:
-            m_sel = st.multiselect("Filtrar por Material", options=materiais)
-        if m_sel:
-            df_filtrado = df_filtrado[df_filtrado["Material"].astype(str).isin(m_sel)]
-            
+            material_selecionado = st.multiselect("Filtrar por Material", options=materiais, key="filtro_material_vendas")
+        if material_selecionado:
+            df_filtrado = df_filtrado[df_filtrado["Material"].astype(str).isin(material_selecionado)]
+
     if "Grupo de mercadorias" in df_vendas.columns:
         grupos = sorted(df_vendas["Grupo de mercadorias"].dropna().astype(str).unique())
         with f3:
-            g_sel = st.multiselect("Filtrar por Grupo", options=grupos)
-        if g_sel:
-            df_filtrado = df_filtrado[df_filtrado["Grupo de mercadorias"].astype(str).isin(g_sel)]
+            grupo_selecionado = st.multiselect("Filtrar por Grupo de Mercadorias", options=grupos, key="filtro_grupo_vendas")
+        if grupo_selecionado:
+            df_filtrado = df_filtrado[df_filtrado["Grupo de mercadorias"].astype(str).isin(grupo_selecionado)]
 
     st.markdown("<br>", unsafe_allow_html=True)
     m1, m2 = st.columns(2)
     with m1:
-        st.metric("📦 Quantidade Total Faturada", f"{df_filtrado['Quantidade faturada'].sum():,.0f}")
+        total_qtd = df_filtrado["Quantidade faturada"].sum() if "Quantidade faturada" in df_filtrado.columns else 0
+        st.metric("📦 Quantidade Total Faturada (Filtrado)", f"{total_qtd:,.0f}")
     with m2:
-        st.metric("💰 Valor Líquido Total", f"R$ {df_filtrado['Valor líquido'].sum():,.2f}")
+        total_val = df_filtrado["Valor líquido"].sum() if "Valor líquido" in df_filtrado.columns else 0
+        st.metric("💰 Valor Líquido Total (Filtrado)", f"R$ {total_val:,.2f}")
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.dataframe(df_filtrado, use_container_width=True)
