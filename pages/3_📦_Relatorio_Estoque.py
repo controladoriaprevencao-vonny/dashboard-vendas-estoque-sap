@@ -18,7 +18,7 @@ def init_supabase():
 supabase: Client = init_supabase()
 
 st.title("📋 Relatório Consolidado de Estoque")
-st.markdown("Consulta e filtros do estoque atual hospedado na nuvem.")
+st.markdown("Área de análise e filtros avançados do estoque atual.")
 
 @st.cache_data(ttl=300)
 def baixar_estoque():
@@ -36,24 +36,50 @@ df_estoque = baixar_estoque()
 
 if df_estoque is not None:
     st.markdown("### 🔍 Filtros Interativos")
-    f_col1, f_col2 = st.columns(2)
-    df_filtrado = df_estoque.copy()
     
+    f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+    df_filtrado_est = df_estoque.copy()
+    
+    # 1. Filtro por Loja (Divisão)
     if "Divisão" in df_estoque.columns:
-        lojas = sorted(df_estoque["Divisão"].dropna().astype(str).unique())
+        lojas_est = sorted(df_estoque["Divisão"].dropna().astype(str).unique())
         with f_col1:
-            l_sel = st.multiselect("Filtrar por Loja (Divisão)", options=lojas)
-        if l_sel:
-            df_filtrado = df_filtrado[df_filtrado["Divisão"].astype(str).isin(l_sel)]
-            
+            loja_escolhida_est = st.multiselect("Loja (Divisão)", options=lojas_est, key="filtro_loja_est")
+        if loja_escolhida_est:
+            df_filtrado_est = df_filtrado_est[df_filtrado_est["Divisão"].astype(str).isin(loja_escolhida_est)]
+    
+    # 2. Filtro por Material
     if "Material" in df_estoque.columns:
-        materiais = sorted(df_estoque["Material"].dropna().astype(str).unique())
+        materiais_est = sorted(df_estoque["Material"].dropna().astype(str).unique())
         with f_col2:
-            m_sel = st.multiselect("Filtrar por Material", options=materiais)
-        if m_sel:
-            df_filtrado = df_filtrado[df_filtrado["Material"].astype(str).isin(m_sel)]
+            material_escolhido_est = st.multiselect("Material", options=materiais_est, key="filtro_mat_est")
+        if material_escolhido_est:
+            df_filtrado_est = df_filtrado_est[df_filtrado_est["Material"].astype(str).isin(material_escolhido_est)]
 
-    st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado)}")
-    st.dataframe(df_filtrado, use_container_width=True)
+    # 3. Filtro por Grupo de Mercadorias
+    if "Grupo de mercadorias" in df_estoque.columns:
+        grupos_est = sorted(df_estoque["Grupo de mercadorias"].dropna().astype(str).unique())
+        with f_col3:
+            grupo_escolhido_est = st.multiselect("Grupo de Mercadorias", options=grupos_est, key="filtro_grupo_est")
+        if grupo_escolhido_est:
+            df_filtrado_est = df_filtrado_est[df_filtrado_est["Grupo de mercadorias"].astype(str).isin(grupo_escolhido_est)]
+
+    # 4. Filtro por Depósito
+    col_deposito_possiveis = ["Depósito", "Deposito", "Dep."]
+    col_dep_encontrada = next((c for c in col_deposito_possiveis if c in df_estoque.columns), None)
+    
+    if col_dep_encontrada:
+        depositos_est = sorted(df_estoque[col_dep_encontrada].dropna().astype(str).unique())
+        with f_col4:
+            dep_escolhido_est = st.multiselect("Depósito", options=depositos_est, key="filtro_dep_est")
+        if dep_escolhido_est:
+            df_filtrado_est = df_filtrado_est[df_filtrado_est[col_dep_encontrada].astype(str).isin(dep_escolhido_est)]
+    else:
+        with f_col4:
+            st.info("Coluna 'Depósito' não encontrada.")
+
+    st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.dataframe(df_filtrado_est, use_container_width=True)
 else:
     st.warning("⚠️ Nenhuma planilha de Estoque encontrada no Supabase. Faça o upload na aba de Gestão.")
