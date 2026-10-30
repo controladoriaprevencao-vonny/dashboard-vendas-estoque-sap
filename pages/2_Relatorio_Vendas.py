@@ -40,7 +40,7 @@ except Exception:
     pass
 
 st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Visualização consolidada de vendas por Loja e Material, ordenada automaticamente por maiores valores[cite: 6].")
+st.markdown("Visualização consolidada de vendas por Loja e Material, ordenada rigorosamente pelos maiores valores líquidos.")
 
 @st.cache_data(ttl=300)
 def baixar_vendas():
@@ -91,11 +91,9 @@ if df_vendas is not None:
         total_val = df_filtrado["Valor líquido"].sum() if "Valor líquido" in df_filtrado.columns else 0
         st.metric("💰 Valor Líquido Total (Filtrado)", f"R$ {total_val:,.2f}")
 
-    # ORDENAÇÃO AUTOMÁTICA: Maiores valores líquidos no topo por padrão[cite: 6]
+    # ORDENAÇÃO EXCLUSIVA PELA COLUNA "Valor líquido" (Do maior para o menor)
     if "Valor líquido" in df_filtrado.columns:
         df_filtrado = df_filtrado.sort_values(by="Valor líquido", ascending=False)
-    elif "Quantidade faturada" in df_filtrado.columns:
-        df_filtrado = df_filtrado.sort_values(by="Quantidade faturada", ascending=False)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.dataframe(df_filtrado, use_container_width=True)
