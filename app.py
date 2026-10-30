@@ -197,7 +197,7 @@ elif st.session_state.perfil_atual == "Admin":
         key="multi_upload_admin"
     )
 
-    # Processa e persiste imediatamente no dicionário de sessão
+    # Processa e adiciona novos arquivos se forem enviados
     if uploaded_files:
         for file in uploaded_files:
             if file.name not in st.session_state.arquivos_admin_fixos:
@@ -279,7 +279,7 @@ elif st.session_state.perfil_atual == "Gerente":
                     if df_v is not None:
                         st.session_state.df_vendas_fixo = df_v
 
-        # Exibe status de carregado se já houver dados na sessão
+        # Exibe status de carregado se já houver dados na sessão (mesmo após F5)
         if st.session_state.df_estoque_fixo is not None:
             st.success("✅ Planilha de Estoque está ativa na sessão.")
         if st.session_state.df_vendas_fixo is not None:
