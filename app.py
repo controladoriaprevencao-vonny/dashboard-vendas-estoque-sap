@@ -1,12 +1,27 @@
 import os
+import io
 import pandas as pd
 import streamlit as st
+from supabase import create_client, Client
 
 # ==========================================
-# CONFIGURAÇÃO DE AMBIENTE (CHAVE AUTOMÁTICA)
-# Deixe True para Staging (Testes) e mude para False na Main (Produção)
+# CONFIGURAÇÃO DE AMBIENTE E SUPABASE
 # ==========================================
 AMBIENTE_STAGING = True
+
+# Credenciais do Supabase fornecidas
+SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
+SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
+BUCKET_NOME = "dados-vonny"
+
+@st.cache_resource
+def init_supabase():
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        return None
+
+supabase: Client = init_supabase()
 
 # Configuração da página web com o ícone personalizado
 st.set_page_config(
@@ -14,10 +29,6 @@ st.set_page_config(
     page_icon="icone.png",
     layout="wide",
 )
-
-# Cria pastas locais persistentes no servidor para hospedar os arquivos enviados
-os.makedirs("dados_admin", exist_ok=True)
-os.makedirs("dados_gestao", exist_ok=True)
 
 # Estilo visual limpo, com a faixa pink no topo, fundo cinza encorpado e botões em cinza com texto branco e negrito
 st.markdown(
@@ -76,13 +87,13 @@ if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
 # ==========================================
-# FUNÇÕES DE PROCESSAMENTO E LEITURA DO DISCO
+# FUNÇÕES DE PROCESSAMENTO E SUPABASE STORAGE
 # ==========================================
-def processar_vendas(caminho_ou_arquivo):
-    if caminho_ou_arquivo is None:
+def processar_vendas_bytes(file_bytes):
+    if file_bytes is None:
         return None
     try:
-        df = pd.read_excel(caminho_ou_arquivo, engine="openpyxl")
+        df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
         if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
             df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
             df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
@@ -91,49 +102,79 @@ def processar_vendas(caminho_ou_arquivo):
     except Exception as e:
         return None
 
-def processar_estoque(caminho_ou_arquivo):
-    if caminho_ou_arquivo is None:
+def processar_estoque_bytes(file_bytes):
+    if file_bytes is None:
         return None
     try:
-        df = pd.read_excel(caminho_ou_arquivo, engine="openpyxl")
+        df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
         return df
     except Exception as e:
         return None
 
-# Funções auxiliares para buscar os arquivos salvos no disco do servidor
-def obter_arquivos_admin_salvos():
-    arquivos = {}
-    if os.path.exists("dados_admin"):
-        for f in os.listdir("dados_admin"):
-            if f.endswith((".xlsx", ".xlsm")):
-                caminho = os.path.join("dados_admin", f)
-                arquivos[f] = processar_vendas(caminho)
-    return arquivos
+def listar_arquivos_supabase(pasta):
+    if not supabase:
+        return {}
+    arquivos_dict = {}
+    try:
+        response = supabase.storage.from_(BUCKET_NOME).list(pasta)
+        if response:
+            for item in response:
+                nome_arq = item["name"]
+                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                    caminho_completo = f"{pasta}/{nome_arq}"
+                    file_res = supabase.storage.from_(BUCKET_NOME).download(caminho_completo)
+                    if file_res:
+                        if pasta == "admin":
+                            arquivos_dict[nome_arq] = processar_vendas_bytes(file_res)
+                        else:
+                            if "estoque" in nome_arq:
+                                arquivos_dict["estoque"] = processar_estoque_bytes(file_res)
+                            elif "vendas" in nome_arq:
+                                arquivos_dict["vendas"] = processar_vendas_bytes(file_res)
+    except Exception as e:
+        pass
+    return arquivos_dict
 
-def obter_estoque_salvo():
-    caminho = "dados_gestao/estoque_fixo.xlsx"
-    if os.path.exists(caminho):
-        return processar_estoque(caminho)
-    return None
+def upload_para_supabase(pasta, nome_arquivo, file_buffer):
+    if not supabase:
+        return False
+    try:
+        caminho = f"{pasta}/{nome_arquivo}"
+        # Remove se já existir para atualizar
+        try:
+            supabase.storage.from_(BUCKET_NOME).remove([caminho])
+        except:
+            pass
+        
+        supabase.storage.from_(BUCKET_NOME).upload(
+            path=caminho,
+            file=file_buffer,
+            file_options={"content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+        )
+        return True
+    except Exception as e:
+        st.error(f"Erro ao enviar para o Supabase: {e}")
+        return False
 
-def obter_vendas_salvo():
-    caminho = "dados_gestao/vendas_fixo.xlsx"
-    if os.path.exists(caminho):
-        return processar_vendas(caminho)
-    return None
+def deletar_do_supabase(pasta, nomes_arquivos):
+    if not supabase:
+        return
+    try:
+         caminhos = [f"{pasta}/{arq}" for arq in nomes_arquivos]
+         supabase.storage.from_(BUCKET_NOME).remove(caminhos)
+    except Exception as e:
+        pass
 
 # ==========================================
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    # Exibe a logo oficial no topo da barra lateral
     try:
         st.image("logo_vonny.png", use_container_width=True)
     except:
         st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
-    # Aviso condicional na barra lateral se for Staging
     if AMBIENTE_STAGING:
         st.info("🛠️ **Staging (Testes)**")
         
@@ -157,22 +198,21 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
     
-    admin_salvos = obter_arquivos_admin_salvos()
-    estoque_salvo = obter_estoque_salvo()
-    vendas_salvo = obter_vendas_salvo()
+    admin_remotos = listar_arquivos_supabase("admin")
+    gestao_remotos = listar_arquivos_supabase("gestao")
     
-    tem_dados = (vendas_salvo is not None) or (estoque_salvo is not None) or (len(admin_salvos) > 0)
+    tem_dados = (len(admin_remotos) > 0) or ("estoque" in gestao_remotos) or ("vendas" in gestao_remotos)
     
     if tem_dados:
-        st.success("✅ Arquivos hospedados no servidor")
+        st.success("✅ Dados salvos no Supabase")
     else:
-        st.warning("⚠️ Nenhum arquivo no servidor")
+        st.warning("⚠️ Nenhum arquivo na nuvem")
 
 # ==========================================
-# AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
+# AVISO CONDICIONAL NO TOPO
 # ==========================================
 if AMBIENTE_STAGING:
-    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em production.")
+    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
 
 # ==========================================
 # 1. HOME / SELEÇÃO DE PERFIL
@@ -204,7 +244,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles ficam hospedados no servidor e resistem a atualizações de página (F5).")
+    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles são salvos com segurança no Supabase e resistem a qualquer atualização de página (F5).")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -213,32 +253,29 @@ elif st.session_state.perfil_atual == "Admin":
         key="multi_upload_admin"
     )
 
-    # Salva fisicamente no disco do servidor
     if uploaded_files:
-        for file in uploaded_files:
-            caminho_destino = os.path.join("dados_admin", file.name)
-            with open(caminho_destino, "wb") as f:
-                f.write(file.getbuffer())
-        st.success("🎉 Arquivos enviados e hospedados com sucesso!")
+        with st.spinner("Enviando arquivos para o Supabase..."):
+            for file in uploaded_files:
+                upload_para_supabase("admin", file.name, file.getvalue())
+        st.success("🎉 Arquivos enviados e salvos na nuvem com sucesso!")
         st.rerun()
 
     st.markdown("---")
-    st.subheader("📋 Arquivos Atualmente Hospedados no Servidor:")
-    admin_salvos = obter_arquivos_admin_salvos()
+    st.subheader("📋 Arquivos Atualmente Salvos no Supabase:")
+    admin_remotos = listar_arquivos_supabase("admin")
     
-    if len(admin_salvos) > 0:
-        for nome_arquivo, df_dados in admin_salvos.items():
+    if len(admin_remotos) > 0:
+        for nome_arquivo, df_dados in admin_remotos.items():
             qtd_linhas = len(df_dados) if df_dados is not None else 0
             st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # Botão Apagar (Visão Admin)
         with st.expander("🗑️ Botão Apagar - Gerenciar Arquivos"):
-            st.markdown("Selecione qual arquivo deseja remover permanentemente do servidor:")
+            st.markdown("Selecione qual arquivo deseja remover permanentemente do Supabase:")
             arquivos_para_apagar = st.multiselect(
                 "Escolha os arquivos para apagar:",
-                options=list(admin_salvos.keys()),
+                options=list(admin_remotos.keys()),
                 key="select_apagar_admin"
             )
             
@@ -246,24 +283,18 @@ elif st.session_state.perfil_atual == "Admin":
             with col_ap1:
                 if st.button("🗑️ Apagar Selecionados", key="btn_apagar_selecionados_admin"):
                     if arquivos_para_apagar:
-                        for arq in arquivos_para_apagar:
-                            caminho = os.path.join("dados_admin", arq)
-                            if os.path.exists(caminho):
-                                os.remove(caminho)
+                        deletar_do_supabase("admin", arquivos_para_apagar)
                         st.success("✅ Arquivo(s) selecionado(s) apagado(s) com sucesso!")
                         st.rerun()
                     else:
                         st.warning("Selecione pelo menos um arquivo para apagar.")
             with col_ap2:
                 if st.button("🗑️ Apagar Todos os Arquivos", key="btn_apagar_todos_admin"):
-                    for arq in admin_salvos.keys():
-                        caminho = os.path.join("dados_admin", arq)
-                        if os.path.exists(caminho):
-                            os.remove(caminho)
+                    deletar_do_supabase("admin", list(admin_remotos.keys()))
                     st.success("✅ Todos os arquivos administrativos foram apagados!")
                     st.rerun()
     else:
-        st.info("Nenhum arquivo hospedado no momento.")
+        st.info("Nenhum arquivo no Supabase no momento.")
 
 # ==========================================
 # 3. VISÃO DOS GERENTES DE PRODUTO
@@ -283,63 +314,59 @@ elif st.session_state.perfil_atual == "Gerente":
             st.session_state.pagina_atual = "Vendas"
             st.rerun()
 
+    gestao_remotos = listar_arquivos_supabase("gestao")
+    df_estoque_remoto = gestao_remotos.get("estoque")
+    df_vendas_remoto = gestao_remotos.get("vendas")
+
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo. Eles ficam hospedados no servidor e não somem ao atualizar a página (F5):")
+        st.markdown("Faça o upload direto dos arquivos abaixo. Eles ficam salvos no Supabase e não somem ao atualizar a página (F5):")
 
-        # Seção de Upload para o Gerente
         with st.expander("📂 Fazer Upload das Planilhas (Estoque e Vendas)", expanded=True):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None:
-                    caminho_e = "dados_gestao/estoque_fixo.xlsx"
-                    with open(caminho_e, "wb") as f:
-                        f.write(file_e.getbuffer())
-                    st.success("✅ Estoque hospedado com sucesso!")
+                    with st.spinner("Enviando estoque para o Supabase..."):
+                        upload_para_supabase("gestao", "estoque_fixo.xlsx", file_e.getvalue())
+                    st.success("✅ Estoque salvo na nuvem com sucesso!")
                     st.rerun()
             with col_u2:
                 file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
                 if file_v is not None:
-                    caminho_v = "dados_gestao/vendas_fixo.xlsx"
-                    with open(caminho_v, "wb") as f:
-                        f.write(file_v.getbuffer())
-                    st.success("✅ Vendas hospedadas com sucesso!")
+                    with st.spinner("Enviando vendas para o Supabase..."):
+                        upload_para_supabase("gestao", "vendas_fixo.xlsx", file_v.getvalue())
+                    st.success("✅ Vendas salvas na nuvem com sucesso!")
                     st.rerun()
 
-        estoque_salvo = obter_estoque_salvo()
-        vendas_salvo = obter_vendas_salvo()
+        if df_estoque_remoto is not None:
+            st.success("✅ Planilha de Estoque está ativa e hospedada no Supabase.")
+        if df_vendas_remoto is not None:
+            st.success("✅ Planilha de Vendas está ativa e hospedada no Supabase.")
 
-        if estoque_salvo is not None:
-            st.success("✅ Planilha de Estoque está ativa e hospedada no servidor.")
-        if vendas_salvo is not None:
-            st.success("✅ Planilha de Vendas está ativa e hospedada no servidor.")
-
-        # Botão Apagar (Visão Gestão)
-        tem_dados_gestao = (estoque_salvo is not None) or (vendas_salvo is not None)
+        tem_dados_gestao = (df_estoque_remoto is not None) or (df_vendas_remoto is not None)
         if tem_dados_gestao:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.expander("🗑️ Botão Apagar - Gerenciar Planilhas de Gestão"):
-                st.markdown("Selecione qual base de dados você deseja remover do servidor:")
+                st.markdown("Selecione qual base de dados você deseja remover do Supabase:")
                 opcoes_apagar_gestao = []
-                if estoque_salvo is not None:
+                if df_estoque_remoto is not None:
                     opcoes_apagar_gestao.append("Planilha de Estoque")
-                if vendas_salvo is not None:
+                if df_vendas_remoto is not None:
                     opcoes_apagar_gestao.append("Planilha de Vendas")
                 
                 escolhas_apagar = st.multiselect("Selecione o que deseja apagar:", options=opcoes_apagar_gestao, key="select_apagar_gestao")
                 
                 if st.button("🗑️ Confirmar Exclusão Selecionada", key="btn_confirmar_apagar_gestao"):
                     if escolhas_apagar:
+                        arquivos_para_remover = []
                         if "Planilha de Estoque" in escolhas_apagar:
-                            caminho_e = "dados_gestao/estoque_fixo.xlsx"
-                            if os.path.exists(caminho_e):
-                                os.remove(caminho_e)
+                            arquivos_para_remover.append("estoque_fixo.xlsx")
                         if "Planilha de Vendas" in escolhas_apagar:
-                            caminho_v = "dados_gestao/vendas_fixo.xlsx"
-                            if os.path.exists(caminho_v):
-                                os.remove(caminho_v)
-                        st.success("✅ Base(s) selecionada(s) apagada(s) do servidor!")
+                            arquivos_para_remover.append("vendas_fixo.xlsx")
+                        
+                        deletar_do_supabase("gestao", arquivos_para_remover)
+                        st.success("✅ Base(s) selecionada(s) apagada(s) do Supabase!")
                         st.rerun()
                     else:
                         st.warning("Selecione pelo menos uma opção para apagar.")
@@ -361,16 +388,14 @@ elif st.session_state.perfil_atual == "Gerente":
 
     elif st.session_state.pagina_atual == "Estoques":
         st.title("📋 Relatório Consolidado de Estoque")
-        estoque_salvo = obter_estoque_salvo()
-        if estoque_salvo is not None:
-            st.dataframe(estoque_salvo, use_container_width=True)
+        if df_estoque_remoto is not None:
+            st.dataframe(df_estoque_remoto, use_container_width=True)
         else:
-            st.warning("⚠️ Nenhuma planilha de Estoque hospedada. Utilize a seção de upload na página inicial da Gestão.")
+            st.warning("⚠️ Nenhuma planilha de Estoque no Supabase. Utilize a seção de upload na página inicial da Gestão.")
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
-        vendas_salvo = obter_vendas_salvo()
-        if vendas_salvo is not None:
-            st.dataframe(vendas_salvo, use_container_width=True)
+        if df_vendas_remoto is not None:
+            st.dataframe(df_vendas_remoto, use_container_width=True)
         else:
-            st.warning("⚠️ Nenhuma planilha de Vendas hospedada. Utilize a seção de upload na página inicial da Gestão.")
+            st.warning("⚠️ Nenhuma planilha de Vendas no Supabase. Utilize a seção de upload na página inicial da Gestão.")
