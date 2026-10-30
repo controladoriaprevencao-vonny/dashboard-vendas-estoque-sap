@@ -98,8 +98,13 @@ def processar_estoque(uploaded_file):
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
+    # Exibe a logo oficial no topo da barra lateral (Certifique-se de salvar o arquivo como 'logo_vonny.png' no GitHub)
+    try:
+        st.image("logo_vonny.png", use_container_width=True)
+    except:
+        st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
+    
     st.markdown("---")
     
     st.markdown("### Selecione o Perfil:")
