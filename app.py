@@ -65,7 +65,6 @@ def processar_vendas_consolidado(file_bytes):
     try:
         df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
         
-        # Converte colunas numéricas
         if "Quantidade faturada" in df.columns:
             df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
         if "Preço interno" in df.columns:
@@ -74,11 +73,8 @@ def processar_vendas_consolidado(file_bytes):
         if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
             df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
         
-        # Se contiver Divisão e Material, consolida somando quantidades e valores líquidos
         if "Divisão" in df.columns and "Material" in df.columns:
             colunas_agrupamento = ["Divisão", "Material"]
-            
-            # Se houver descrição do item, mantemos pegando o primeiro valor válido
             colunas_soma = ["Quantidade faturada"]
             if "Valor líquido" in df.columns:
                 colunas_soma.append("Valor líquido")
@@ -88,16 +84,17 @@ def processar_vendas_consolidado(file_bytes):
 
             agg_dict = {col: "sum" for col in colunas_soma}
             
-            # Se existir descrição do item, mantém a primeira string encontrada
             if "Denominação de item" in df.columns:
                 agg_dict["Denominação de item"] = "first"
             if "Grupo de mercadorias" in df.columns:
                 agg_dict["Grupo de mercadorias"] = "first"
+            if "Data fixação preço" in df.columns:
+                agg_dict["Data fixação preço"] = "first"
 
             df = df.groupby(colunas_agrupamento, as_index=False).agg(agg_dict)
             
         return df
-    except Exception as e:
+    except Exception:
         return None
 
 @st.cache_data(ttl=300)
@@ -365,7 +362,28 @@ elif st.session_state.perfil_atual == "Gerente":
             with st.spinner("Baixando e processando estoque da nuvem..."):
                 df_estoque = baixar_arquivo_supabase("gestao", "estoque_fixo.xlsx")
             if df_estoque is not None:
-                st.dataframe(df_estoque, use_container_width=True)
+                # Filtros para Estoque
+                st.markdown("### 🔍 Filtros do Relatório")
+                f_col1, f_col2 = st.columns(2)
+                
+                df_filtrado_est = df_estoque.copy()
+                
+                if "Divisão" in df_estoque.columns:
+                    lojas_est = sorted(df_estoque["Divisão"].dropna().astype(str).unique())
+                    with f_col1:
+                        loja_escolhida_est = st.multiselect("Filtrar por Loja (Divisão)", options=lojas_est, key="filtro_loja_est")
+                    if loja_escolhida_est:
+                        df_filtrado_est = df_filtrado_est[df_filtrado_est["Divisão"].astype(str).isin(loja_escolhida_est)]
+                
+                if "Material" in df_estoque.columns:
+                    materiais_est = sorted(df_estoque["Material"].dropna().astype(str).unique())
+                    with f_col2:
+                        material_escolhido_est = st.multiselect("Filtrar por Material", options=materiais_est, key="filtro_mat_est")
+                    if material_escolhido_est:
+                        df_filtrado_est = df_filtrado_est[df_filtrado_est["Material"].astype(str).isin(material_escolhido_est)]
+
+                st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
+                st.dataframe(df_filtrado_est, use_container_width=True)
             else:
                 st.error("Erro ao ler o arquivo de estoque.")
         else:
@@ -377,7 +395,48 @@ elif st.session_state.perfil_atual == "Gerente":
             with st.spinner("Baixando e processando vendas da nuvem..."):
                 df_vendas = baixar_arquivo_supabase("gestao", "vendas_fixo.xlsx")
             if df_vendas is not None:
-                st.dataframe(df_vendas, use_container_width=True)
+                # Filtros Avançados para Vendas
+                st.markdown("### 🔍 Filtros do Relatório")
+                f1, f2, f3 = st.columns(3)
+                
+                df_filtrado = df_vendas.copy()
+                
+                # Filtro por Loja (Divisão)
+                if "Divisão" in df_vendas.columns:
+                    lojas = sorted(df_vendas["Divisão"].dropna().astype(str).unique())
+                    with f1:
+                        loja_selecionada = st.multiselect("Filtrar por Loja (Divisão)", options=lojas, key="filtro_loja_vendas")
+                    if loja_selecionada:
+                        df_filtrado = df_filtrado[df_filtrado["Divisão"].astype(str).isin(loja_selecionada)]
+                
+                # Filtro por Material
+                if "Material" in df_vendas.columns:
+                    materiais = sorted(df_vendas["Material"].dropna().astype(str).unique())
+                    with f2:
+                        material_selecionado = st.multiselect("Filtrar por Material", options=materiais, key="filtro_material_vendas")
+                    if material_selecionado:
+                        df_filtrado = df_filtrado[df_filtrado["Material"].astype(str).isin(material_selecionado)]
+
+                # Filtro por Grupo de Mercadorias
+                if "Grupo de mercadorias" in df_vendas.columns:
+                    grupos = sorted(df_vendas["Grupo de mercadorias"].dropna().astype(str).unique())
+                    with f3:
+                        grupo_selecionado = st.multiselect("Filtrar por Grupo de Mercadorias", options=grupos, key="filtro_grupo_vendas")
+                    if grupo_selecionado:
+                        df_filtrado = df_filtrado[df_filtrado["Grupo de mercadorias"].astype(str).isin(grupo_selecionado)]
+
+                # Métricas Rápidas baseadas nos filtros aplicados
+                st.markdown("<br>", unsafe_allow_html=True)
+                m1, m2 = st.columns(2)
+                with m1:
+                    total_qtd = df_filtrado["Quantidade faturada"].sum() if "Quantidade faturada" in df_filtrado.columns else 0
+                    st.metric("📦 Quantidade Total Faturada (Filtrado)", f"{total_qtd:,.0f}")
+                with m2:
+                    total_val = df_filtrado["Valor líquido"].sum() if "Valor líquido" in df_filtrado.columns else 0
+                    st.metric("💰 Valor Líquido Total (Filtrado)", f"R$ {total_val:,.2f}")
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.dataframe(df_filtrado, use_container_width=True)
             else:
                 st.error("Erro ao ler o arquivo de vendas.")
         else:
