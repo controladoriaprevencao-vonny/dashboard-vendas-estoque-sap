@@ -14,6 +14,11 @@ st.markdown(
     header[data-testid="stHeader"] { background-color: #E6007E !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
     h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
+    .stButton>button {
+        width: 100%; background-color: #555555 !important; color: #FFFFFF !important;
+        font-weight: bold !important; border-radius: 6px; height: 48px; border: none; transition: 0.3s;
+    }
+    .stButton>button:hover { background-color: #333333 !important; color: #FFFFFF !important; }
     </style>
 """,
     unsafe_allow_html=True,
