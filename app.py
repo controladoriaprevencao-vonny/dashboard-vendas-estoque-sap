@@ -5,7 +5,7 @@ import streamlit as st
 # CONFIGURAÇÃO DE AMBIENTE (CHAVE AUTOMÁTICA)
 # Deixe True para Staging (Testes) e mude para False na Main (Produção)
 # ==========================================
-AMBIENTE_STAGING = False
+AMBIENTE_STAGING = True
 
 # Configuração da página web com o ícone personalizado
 st.set_page_config(
