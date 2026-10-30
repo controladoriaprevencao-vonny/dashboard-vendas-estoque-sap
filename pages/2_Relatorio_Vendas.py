@@ -101,26 +101,22 @@ if df_vendas is not None:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📊 Visão Consolidada (Agrupada)")
     
-    # Identifica colunas numéricas para somar e colunas de texto para agrupar
     colunas_agrupamento = [c for c in ["Divisão", "Material", "Denominação de item", "Grupo de mercadorias"] if c in df_filtrado.columns]
     colunas_soma = [c for c in ["Quantidade faturada", "Valor líquido", "Subtotal 1", "Preço interno"] if c in df_filtrado.columns]
     
     if colunas_agrupamento and colunas_soma:
-        # Consolida somando os valores e quantidades por Loja e Material
         df_consolidado = df_filtrado.groupby(colunas_agrupamento, as_index=False)[colunas_soma].sum()
     else:
         df_consolidado = df_filtrado.copy()
 
-    # Ordena pelos maiores valores líquidos
     if "Valor líquido" in df_consolidado.columns:
         df_consolidado = df_consolidado.sort_values(by="Valor líquido", ascending=False)
 
-    # Configuração de colunas (Formatando R$ e separadores de milhar)
     config_colunas_cons = {}
     for col in df_consolidado.columns:
         col_lower = col.lower()
         if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
-            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="R$ %.2f")
+            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="R$ %,.2f")
         elif "quantidade" in col_lower or "utiliz" in col_lower:
             config_colunas_cons[col] = st.column_config.NumberColumn(col, format="%,.0f")
 
@@ -138,7 +134,7 @@ if df_vendas is not None:
     for col in df_detalhado.columns:
         col_lower = col.lower()
         if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
-            config_colunas_det[col] = st.column_config.NumberColumn(col, format="R$ %.2f")
+            config_colunas_det[col] = st.column_config.NumberColumn(col, format="R$ %,.2f")
         elif "quantidade" in col_lower or "utiliz" in col_lower:
             config_colunas_det[col] = st.column_config.NumberColumn(col, format="%,.0f")
 
