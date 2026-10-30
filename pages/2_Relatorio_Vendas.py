@@ -22,12 +22,14 @@ st.set_page_config(
     layout="wide",
 )
 
+# Estilização para garantir que as células e tabelas expandam e mostrem o conteúdo inteiro
 st.markdown(
     """
     <style>
     header[data-testid="stHeader"] { background-color: #E6007E !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
     h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
+    div[data-testid="stDataFrame"] { width: 100% !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -40,7 +42,7 @@ except Exception:
     pass
 
 st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Visualização de vendas consolidadas e detalhadas por Loja e Material, com ordenação por maiores valores líquidos.")
+st.markdown("Visualização de vendas consolidadas e detalhadas com filtros globais e independentes.")
 
 @st.cache_data(ttl=300)
 def baixar_vendas():
@@ -63,51 +65,72 @@ def baixar_vendas():
 df_vendas = baixar_vendas()
 
 if df_vendas is not None:
-    st.markdown("### 🔍 Filtros Interativos")
-    f1, f2, f3 = st.columns(3)
-    df_filtrado = df_vendas.copy()
+    # --- 1. FILTRO GLOBAL (MANDANTE PARA TODA A PÁGINA) ---
+    st.markdown("### 🌐 Filtro Global (Mandante da Página)")
+    g1, g2, g3 = st.columns(3)
+    
+    df_global = df_vendas.copy()
 
     if "Divisão" in df_vendas.columns:
-        lojas = sorted(df_vendas["Divisão"].dropna().astype(str).unique())
-        with f1:
-            loja_selecionada = st.multiselect("Filtrar por Loja (Divisão)", options=lojas, key="filtro_loja_vendas")
-        if loja_selecionada:
-            df_filtrado = df_filtrado[df_filtrado["Divisão"].astype(str).isin(loja_selecionada)]
+        lojas_g = sorted(df_vendas["Divisão"].dropna().astype(str).unique())
+        with g1:
+            loja_g = st.multiselect("Loja Global (Divisão)", options=lojas_g, key="global_loja")
+        if loja_g:
+            df_global = df_global[df_global["Divisão"].astype(str).isin(loja_g)]
 
     if "Material" in df_vendas.columns:
-        materiais = sorted(df_vendas["Material"].dropna().astype(str).unique())
-        with f2:
-            material_selecionado = st.multiselect("Filtrar por Material", options=materiais, key="filtro_material_vendas")
-        if material_selecionado:
-            df_filtrado = df_filtrado[df_filtrado["Material"].astype(str).isin(material_selecionado)]
+        mat_g = sorted(df_vendas["Material"].dropna().astype(str).unique())
+        with g2:
+            material_g = st.multiselect("Material Global", options=mat_g, key="global_material")
+        if material_g:
+            df_global = df_global[df_global["Material"].astype(str).isin(material_g)]
 
     if "Grupo de mercadorias" in df_vendas.columns:
-        grupos = sorted(df_vendas["Grupo de mercadorias"].dropna().astype(str).unique())
-        with f3:
-            grupo_selecionado = st.multiselect("Filtrar por Grupo de Mercadorias", options=grupos, key="filtro_grupo_vendas")
-        if grupo_selecionado:
-            df_filtrado = df_filtrado[df_filtrado["Grupo de mercadorias"].astype(str).isin(grupo_selecionado)]
+        grupo_g = sorted(df_vendas["Grupo de mercadorias"].dropna().astype(str).unique())
+        with g3:
+            grupo_sel_g = st.multiselect("Grupo Global", options=grupo_g, key="global_grupo")
+        if grupo_sel_g:
+            df_global = df_global[df_global["Grupo de mercadorias"].astype(str).isin(grupo_sel_g)]
 
     st.markdown("<br>", unsafe_allow_html=True)
     m1, m2 = st.columns(2)
     with m1:
-        total_qtd = df_filtrado["Quantidade faturada"].sum() if "Quantidade faturada" in df_filtrado.columns else 0
-        st.metric("📦 Quantidade Total Faturada (Filtrado)", f"{total_qtd:,.0f}".replace(",", "."))
+        total_qtd = df_global["Quantidade faturada"].sum() if "Quantidade faturada" in df_global.columns else 0
+        st.metric("📦 Quantidade Total Faturada (Global)", f"{total_qtd:,.0f}".replace(",", "."))
     with m2:
-        total_val = df_filtrado["Valor líquido"].sum() if "Valor líquido" in df_filtrado.columns else 0
-        st.metric("💰 Valor Líquido Total (Filtrado)", f"R$ {total_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        total_val = df_global["Valor líquido"].sum() if "Valor líquido" in df_global.columns else 0
+        st.metric("💰 Valor Líquido Total (Global)", f"R$ {total_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
-    # --- TABELA 1: CONSOLIDADA ---
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    # --- TABELA 1: CONSOLIDADA (Com filtro independente próprio) ---
     st.markdown("### 📊 Visão Consolidada (Agrupada)")
     
-    colunas_agrupamento = [c for c in ["Divisão", "Material", "Denominação de item", "Grupo de mercadorias"] if c in df_filtrado.columns]
-    colunas_soma = [c for c in ["Quantidade faturada", "Valor líquido", "Subtotal 1", "Preço interno"] if c in df_filtrado.columns]
+    with st.expander("🔍 Filtros específicos da Tabela Consolidada"):
+        fc1, fc2 = st.columns(2)
+        df_cons_filtrado = df_global.copy()
+        
+        if "Divisão" in df_cons_filtrado.columns:
+            l_cons = sorted(df_cons_filtrado["Divisão"].dropna().astype(str).unique())
+            with fc1:
+                sel_l_cons = st.multiselect("Filtrar Loja (Consolidado)", options=l_cons, key="cons_loja")
+            if sel_l_cons:
+                df_cons_filtrado = df_cons_filtrado[df_cons_filtrado["Divisão"].astype(str).isin(sel_l_cons)]
+
+        if "Material" in df_cons_filtrado.columns:
+            m_cons = sorted(df_cons_filtrado["Material"].dropna().astype(str).unique())
+            with fc2:
+                sel_m_cons = st.multiselect("Filtrar Material (Consolidado)", options=m_cons, key="cons_mat")
+            if sel_m_cons:
+                df_cons_filtrado = df_cons_filtrado[df_cons_filtrado["Material"].astype(str).isin(sel_m_cons)]
+
+    colunas_agrupamento = [c for c in ["Divisão", "Material", "Denominação de item", "Grupo de mercadorias"] if c in df_cons_filtrado.columns]
+    colunas_soma = [c for c in ["Quantidade faturada", "Valor líquido", "Subtotal 1", "Preço interno"] if c in df_cons_filtrado.columns]
     
     if colunas_agrupamento and colunas_soma:
-        df_consolidado = df_filtrado.groupby(colunas_agrupamento, as_index=False)[colunas_soma].sum()
+        df_consolidado = df_cons_filtrado.groupby(colunas_agrupamento, as_index=False)[colunas_soma].sum()
     else:
-        df_consolidado = df_filtrado.copy()
+        df_consolidado = df_cons_filtrado.copy()
 
     if "Valor líquido" in df_consolidado.columns:
         df_consolidado = df_consolidado.sort_values(by="Valor líquido", ascending=False)
@@ -122,23 +145,54 @@ if df_vendas is not None:
 
     st.dataframe(df_consolidado, use_container_width=True, column_config=config_colunas_cons)
 
-    # --- TABELA 2: COMPLETA / SEM CONSOLIDAÇÃO ---
+
+    # --- TABELA 2: COMPLETA / DETALHADA (Com filtro de Devolução e filtro independente) ---
     st.markdown("<br><br>", unsafe_allow_html=True)
     st.markdown("### 📋 Visão Completa (Detalhada / Sem Consolidação)")
     
-    df_detalhado = df_filtrado.copy()
-    if "Valor líquido" in df_detalhado.columns:
-        df_detalhado = df_detalhado.sort_values(by="Valor líquido", ascending=False)
+    with st.expander("🔍 Filtros específicos da Tabela Detalhada (Incluindo Devolução)"):
+        fd1, fd2, fd3 = st.columns(3)
+        df_det_filtrado = df_global.copy()
+        
+        if "Divisão" in df_det_filtrado.columns:
+            l_det = sorted(df_det_filtrado["Divisão"].dropna().astype(str).unique())
+            with fd1:
+                sel_l_det = st.multiselect("Filtrar Loja (Detalhado)", options=l_det, key="det_loja")
+            if sel_l_det:
+                df_det_filtrado = df_det_filtrado[df_det_filtrado["Divisão"].astype(str).isin(sel_l_det)]
+
+        if "Material" in df_det_filtrado.columns:
+            m_det = sorted(df_det_filtrado["Material"].dropna().astype(str).unique())
+            with fd2:
+                sel_m_det = st.multiselect("Filtrar Material (Detalhado)", options=m_det, key="det_mat")
+            if sel_m_det:
+                df_det_filtrado = df_det_filtrado[df_det_filtrado["Material"].astype(str).isin(sel_m_det)]
+
+        # Filtro exclusivo para a coluna Devolução
+        col_dev_possiveis = ["Devolução", "Devolucao"]
+        col_dev_encontrada = next((c for c in col_dev_possiveis if c in df_det_filtrado.columns), None)
+        if col_dev_encontrada:
+            dev_ops = sorted(df_det_filtrado[col_dev_encontrada].dropna().astype(str).unique())
+            with fd3:
+                sel_dev = st.multiselect("Filtrar Devolução", options=dev_ops, key="det_dev")
+            if sel_dev:
+                df_det_filtrado = df_det_filtrado[df_det_filtrado[col_dev_encontrada].astype(str).isin(sel_dev)]
+        else:
+            with fd3:
+                st.info("Coluna 'Devolução' não encontrada.")
+
+    if "Valor líquido" in df_det_filtrado.columns:
+        df_det_filtrado = df_det_filtrado.sort_values(by="Valor líquido", ascending=False)
 
     config_colunas_det = {}
-    for col in df_detalhado.columns:
+    for col in df_det_filtrado.columns:
         col_lower = col.lower()
         if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
             config_colunas_det[col] = st.column_config.NumberColumn(col, format="R$ %,.2f")
         elif "quantidade" in col_lower or "utiliz" in col_lower:
             config_colunas_det[col] = st.column_config.NumberColumn(col, format="%,.0f")
 
-    st.dataframe(df_detalhado, use_container_width=True, column_config=config_colunas_det)
+    st.dataframe(df_det_filtrado, use_container_width=True, column_config=config_colunas_det)
 
 else:
     st.warning("⚠️ Nenhuma planilha de Vendas encontrada no Supabase. Vá até a Central de Upload para enviar uma.")
