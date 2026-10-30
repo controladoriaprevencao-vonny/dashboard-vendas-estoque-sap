@@ -24,17 +24,13 @@ if AMBIENTE_STAGING:
 
 st.title("📊 Dashboard Executivo - Vonný")
 st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase.")
-st.markdown("Utilize o menu lateral esquerdo para navegar entre os módulos do sistema:")
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# Definindo as páginas de forma oficial e segura para o Streamlit
+# Configurando a navegação oficial apenas com as páginas reais do sistema (sem a aba de ativos solta)
 paginas = {
-    "Navegação": [
+    "Módulos": [
         st.Page("pages/1_Upload_e_Formatacao.py", title="Central de Uploads", icon="📤"),
         st.Page("pages/2_Relatorio_Vendas.py", title="Relatório de Vendas", icon="📈"),
         st.Page("pages/3_Relatorio_Estoque.py", title="Relatório de Estoque", icon="📦"),
-        st.Page("pages/4_Imagens_e_Ativos.py", title="Imagens e Ativos", icon="🎨"),
     ]
 }
 
