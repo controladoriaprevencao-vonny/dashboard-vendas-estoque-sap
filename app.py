@@ -9,7 +9,6 @@ from supabase import create_client, Client
 # ==========================================
 AMBIENTE_STAGING = True
 
-# Credenciais do Supabase fornecidas
 SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
 SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
 BUCKET_NOME = "dados-vonny"
@@ -23,42 +22,31 @@ def init_supabase():
 
 supabase: Client = init_supabase()
 
-# Configuração da página web com o ícone personalizado
 st.set_page_config(
     page_title="Dashboard Executivo - Vonný" + (" [STAGING]" if AMBIENTE_STAGING else ""),
     page_icon="icone.png",
     layout="wide",
 )
 
-# Estilo visual limpo, com a faixa pink no topo, fundo cinza encorpado e botões em cinza com texto branco e negrito
 st.markdown(
     """
     <style>
-    /* Faixa pink oficial no topo absoluto da página */
     header[data-testid="stHeader"] {
         background-color: #E6007E !important;
     }
-    
-    /* Fundo do painel principal (Lado direito) em cinza mais escuro */
     .main {
         background-color: #EAEAEA !important;
         color: #2C2C2C;
     }
-    
-    /* Barra lateral em tom rosa claro da marca */
     section[data-testid="stSidebar"] {
         background-color: #FFE6EE !important;
         border-right: 1px solid #F5CCD8;
     }
-    
-    /* Títulos e cabeçalhos em rosa escuro/magenta */
     h1, h2, h3 {
         color: #C5006B !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         font-weight: 700;
     }
-    
-    /* Botões estilizados em cinza elegante */
     .stButton>button {
         width: 100%;
         background-color: #555555 !important;
@@ -69,7 +57,6 @@ st.markdown(
         border: none;
         transition: 0.3s;
     }
-    
     .stButton>button:hover {
         background-color: #333333 !important;
         color: #FFFFFF !important;
@@ -79,7 +66,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão para navegação
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
 
@@ -87,7 +73,7 @@ if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
 # ==========================================
-# FUNÇÕES DE PROCESSAMENTO E SUPABASE STORAGE
+# FUNÇÕES OTIMIZADAS COM CACHE
 # ==========================================
 def processar_vendas_bytes(file_bytes):
     if file_bytes is None:
@@ -99,19 +85,20 @@ def processar_vendas_bytes(file_bytes):
             df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
             df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
         return df
-    except Exception as e:
+    except Exception:
         return None
 
 def processar_estoque_bytes(file_bytes):
     if file_bytes is None:
         return None
     try:
-        df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
-        return df
-    except Exception as e:
+        return pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+    except Exception:
         return None
 
-def listar_arquivos_supabase(pasta):
+# CACHE DOS DADOS: Evita baixar o arquivo do Supabase a cada clique na interface
+@st.cache_data(ttl=600, show_spinner="Carregando dados da nuvem...")
+def obter_dados_supabase(pasta):
     if not supabase:
         return {}
     arquivos_dict = {}
@@ -131,19 +118,31 @@ def listar_arquivos_supabase(pasta):
                                 arquivos_dict["estoque"] = processar_estoque_bytes(file_res)
                             elif "vendas" in nome_arq:
                                 arquivos_dict["vendas"] = processar_vendas_bytes(file_res)
-    except Exception as e:
+    except Exception:
         pass
     return arquivos_dict
+
+# LEITURA RÁPIDA: Checa apenas a lista de nomes no bucket sem baixar arquivos
+def verificar_arquivos_existentes():
+    if not supabase:
+        return False
+    try:
+        admin_list = supabase.storage.from_(BUCKET_NOME).list("admin")
+        gestao_list = supabase.storage.from_(BUCKET_NOME).list("gestao")
+        has_admin = any(item["name"] != ".emptyFolderPlaceholder" for item in admin_list) if admin_list else False
+        has_gestao = any(item["name"] != ".emptyFolderPlaceholder" for item in gestao_list) if gestao_list else False
+        return has_admin or has_gestao
+    except Exception:
+        return False
 
 def upload_para_supabase(pasta, nome_arquivo, file_buffer):
     if not supabase:
         return False
     try:
         caminho = f"{pasta}/{nome_arquivo}"
-        # Remove se já existir para atualizar
         try:
             supabase.storage.from_(BUCKET_NOME).remove([caminho])
-        except:
+        except Exception:
             pass
         
         supabase.storage.from_(BUCKET_NOME).upload(
@@ -151,6 +150,8 @@ def upload_para_supabase(pasta, nome_arquivo, file_buffer):
             file=file_buffer,
             file_options={"content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
         )
+        # Invalida o cache após um novo upload
+        st.cache_data.clear()
         return True
     except Exception as e:
         st.error(f"Erro ao enviar para o Supabase: {e}")
@@ -160,18 +161,20 @@ def deletar_do_supabase(pasta, nomes_arquivos):
     if not supabase:
         return
     try:
-         caminhos = [f"{pasta}/{arq}" for arq in nomes_arquivos]
-         supabase.storage.from_(BUCKET_NOME).remove(caminhos)
-    except Exception as e:
+        caminhos = [f"{pasta}/{arq}" for arq in nomes_arquivos]
+        supabase.storage.from_(BUCKET_NOME).remove(caminhos)
+        # Invalida o cache após exclusão
+        st.cache_data.clear()
+    except Exception:
         pass
 
 # ==========================================
-# BARRA LATERAL (Navegação de Perfis)
+# BARRA LATERAL (Navegação)
 # ==========================================
 with st.sidebar:
     try:
         st.image("logo_vonny.png", use_container_width=True)
-    except:
+    except Exception:
         st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
@@ -179,7 +182,6 @@ with st.sidebar:
         st.info("🛠️ **Staging (Testes)**")
         
     st.markdown("---")
-    
     st.markdown("### Selecione o Perfil:")
     if st.button("🏠 Menu Principal", key="sb_home"):
         st.session_state.perfil_atual = "Home"
@@ -198,24 +200,16 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
     
-    admin_remotos = listar_arquivos_supabase("admin")
-    gestao_remotos = listar_arquivos_supabase("gestao")
-    
-    tem_dados = (len(admin_remotos) > 0) or ("estoque" in gestao_remotos) or ("vendas" in gestao_remotos)
-    
-    if tem_dados:
+    if verificar_arquivos_existentes():
         st.success("✅ Dados salvos no Supabase")
     else:
         st.warning("⚠️ Nenhum arquivo na nuvem")
 
-# ==========================================
-# AVISO CONDICIONAL NO TOPO
-# ==========================================
 if AMBIENTE_STAGING:
     st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
 
 # ==========================================
-# 1. HOME / SELEÇÃO DE PERFIL
+# 1. HOME
 # ==========================================
 if st.session_state.perfil_atual == "Home":
     st.title("📊 Dashboard Executivo - Vonný")
@@ -240,7 +234,7 @@ if st.session_state.perfil_atual == "Home":
             st.rerun()
 
 # ==========================================
-# 2. VISÃO ADMINISTRATIVA (UPLOAD MÚLTIPLO)
+# 2. VISÃO ADMINISTRATIVA
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
@@ -262,7 +256,7 @@ elif st.session_state.perfil_atual == "Admin":
 
     st.markdown("---")
     st.subheader("📋 Arquivos Atualmente Salvos no Supabase:")
-    admin_remotos = listar_arquivos_supabase("admin")
+    admin_remotos = obter_dados_supabase("admin")
     
     if len(admin_remotos) > 0:
         for nome_arquivo, df_dados in admin_remotos.items():
@@ -270,7 +264,6 @@ elif st.session_state.perfil_atual == "Admin":
             st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
         
         st.markdown("<br>", unsafe_allow_html=True)
-        
         with st.expander("🗑️ Botão Apagar - Gerenciar Arquivos"):
             st.markdown("Selecione qual arquivo deseja remover permanentemente do Supabase:")
             arquivos_para_apagar = st.multiselect(
@@ -297,7 +290,7 @@ elif st.session_state.perfil_atual == "Admin":
         st.info("Nenhum arquivo no Supabase no momento.")
 
 # ==========================================
-# 3. VISÃO DOS GERENTES DE PRODUTO
+# 3. VISÃO GERENTE
 # ==========================================
 elif st.session_state.perfil_atual == "Gerente":
     
@@ -314,7 +307,7 @@ elif st.session_state.perfil_atual == "Gerente":
             st.session_state.pagina_atual = "Vendas"
             st.rerun()
 
-    gestao_remotos = listar_arquivos_supabase("gestao")
+    gestao_remotos = obter_dados_supabase("gestao")
     df_estoque_remoto = gestao_remotos.get("estoque")
     df_vendas_remoto = gestao_remotos.get("vendas")
 
