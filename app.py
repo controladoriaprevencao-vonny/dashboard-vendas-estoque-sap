@@ -8,18 +8,18 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual refinado: Faixa pink no topo, botões em cinza elegante e fundo da direita mais escuro
+# Estilo visual limpo, elegante e alinhado com a marca Vonný
 st.markdown(
     """
     <style>
-    /* Injeta a faixa pink oficial no topo absoluto da página */
+    /* Faixa pink oficial no topo absoluto da página */
     header[data-testid="stHeader"] {
         background-color: #E6007E !important;
     }
     
-    /* Fundo do painel principal (Lado direito) em cinza mais escuro */
+    /* Fundo do painel principal (Lado direito) em cinza claro sofisticado */
     .main {
-        background-color: #EAEAEA !important;
+        background-color: #F4F4F6 !important;
         color: #2C2C2C;
     }
     
@@ -41,29 +41,22 @@ st.markdown(
         color: #333333;
     }
 
-    /* Botões estilizados em cinza elegante com texto em branco e negrito */
+    /* Botões estilizados com padrão limpo e elegante */
     .stButton>button {
         width: 100%;
-        background-color: #4A4A4A !important;
+        background-color: #FFFFFF !important;
+        color: #2C2C2C !important;
+        border: 1px solid #D5CBD0 !important;
         border-radius: 6px;
         height: 48px;
-        border: none;
+        font-weight: 600;
         transition: 0.3s;
-    }
-
-    /* Força OBRIGATORIAMENTE o texto dos botões a ficar em BRANCO e NEGRITO */
-    .stButton>button p, .stButton>button span, .stButton>button div {
-        color: #FFFFFF !important;
-        font-weight: bold !important;
-        font-size: 15px;
     }
     
     .stButton>button:hover {
-        background-color: #333333 !important;
-    }
-
-    .stButton>button:hover p, .stButton>button:hover span {
+        background-color: #E6007E !important;
         color: #FFFFFF !important;
+        border-color: #E6007E !important;
     }
     </style>
 """,
@@ -100,17 +93,19 @@ def processar_excel(uploaded_file):
         return None
 
 # ==========================================
-# BARRA LATERAL (Com o Logo da Empresa e Navegação)
+# BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    # Exibe o logo oficial da empresa no topo da barra lateral
+    # Exibição segura do logo (se o arquivo logo.png estiver na pasta)
     try:
         st.image("logo.png", use_column_width=True)
     except Exception:
-        st.markdown("### ✨ Vonný Cosméticos")
+        st.markdown("<h2 style='color: #E6007E; text-align: center;'>VONNÝ</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-size: 12px; color: #666;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
     st.markdown("---")
     st.markdown("### Selecione o Perfil:")
+    
     if st.button("🏠 Menu Principal"):
         st.session_state.perfil_atual = "Home"
         st.session_state.pagina_atual = "Home"
