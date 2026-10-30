@@ -97,14 +97,15 @@ if df_vendas is not None:
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Configuração de colunas para centralizar e formatar valores/quantidades na tabela
+    # Configuração de colunas para abranger Preço, Valor, Subtotal e Quantidades
     config_colunas = {}
     for col in df_filtrado.columns:
-        if "valor" in col.lower() or "liquido" in col.lower() or "subtotal" in col.lower():
+        col_lower = col.lower()
+        if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
             config_colunas[col] = st.column_config.NumberColumn(
                 col, format="R$ %.2f", help="Valores monetários"
             )
-        elif "quantidade" in col.lower() or "utiliz" in col.lower():
+        elif "quantidade" in col_lower or "utiliz" in col_lower:
             config_colunas[col] = st.column_config.NumberColumn(
                 col, format="%,.0f", help="Quantidades"
             )
