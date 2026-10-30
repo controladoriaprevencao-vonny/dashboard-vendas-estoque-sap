@@ -1,4 +1,3 @@
-import os
 import io
 import pandas as pd
 import streamlit as st
@@ -29,18 +28,19 @@ st.markdown(
     header[data-testid="stHeader"] { background-color: #E6007E !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
     h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
-    .stButton>button {
-        width: 100%; background-color: #555555 !important; color: #FFFFFF !important;
-        font-weight: bold !important; border-radius: 6px; height: 48px; border: none; transition: 0.3s;
-    }
-    .stButton>button:hover { background-color: #333333 !important; color: #FFFFFF !important; }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
+# Exibindo o logotipo no topo
+try:
+    st.image("icone.png", width=100)
+except Exception:
+    pass
+
 st.title("📋 Relatório Consolidado de Estoque")
-st.markdown("Área de análise e filtros avançados do estoque atual.")
+st.markdown("Área de análise e filtros avançados do estoque atual, ordenados por maiores valores[cite: 4, 6].")
 
 @st.cache_data(ttl=300)
 def baixar_estoque():
@@ -58,19 +58,16 @@ df_estoque = baixar_estoque()
 
 if df_estoque is not None:
     st.markdown("### 🔍 Filtros Interativos")
-    
     f_col1, f_col2, f_col3, f_col4 = st.columns(4)
     df_filtrado_est = df_estoque.copy()
-    
-    # 1. Filtro por Loja (Divisão)
+
     if "Divisão" in df_estoque.columns:
         lojas_est = sorted(df_estoque["Divisão"].dropna().astype(str).unique())
         with f_col1:
             loja_escolhida_est = st.multiselect("Loja (Divisão)", options=lojas_est, key="filtro_loja_est")
         if loja_escolhida_est:
             df_filtrado_est = df_filtrado_est[df_filtrado_est["Divisão"].astype(str).isin(loja_escolhida_est)]
-    
-    # 2. Filtro por Material
+
     if "Material" in df_estoque.columns:
         materiais_est = sorted(df_estoque["Material"].dropna().astype(str).unique())
         with f_col2:
@@ -78,7 +75,6 @@ if df_estoque is not None:
         if material_escolhido_est:
             df_filtrado_est = df_filtrado_est[df_filtrado_est["Material"].astype(str).isin(material_escolhido_est)]
 
-    # 3. Filtro por Grupo de Mercadorias
     if "Grupo de mercadorias" in df_estoque.columns:
         grupos_est = sorted(df_estoque["Grupo de mercadorias"].dropna().astype(str).unique())
         with f_col3:
@@ -86,7 +82,6 @@ if df_estoque is not None:
         if grupo_escolhido_est:
             df_filtrado_est = df_filtrado_est[df_filtrado_est["Grupo de mercadorias"].astype(str).isin(grupo_escolhido_est)]
 
-    # 4. Filtro por Depósito
     col_deposito_possiveis = ["Depósito", "Deposito", "Dep."]
     col_dep_encontrada = next((c for c in col_deposito_possiveis if c in df_estoque.columns), None)
     
@@ -99,6 +94,12 @@ if df_estoque is not None:
     else:
         with f_col4:
             st.info("Coluna 'Depósito' não encontrada.")
+
+    # ORDENAÇÃO AUTOMÁTICA: Maiores valores ou quantidades no topo por padrão[cite: 6]
+    colunas_ordenacao = ["Valor Total", "Valor líquido", "Quantidade", "Quantidade Total"]
+    col_encontrada = next((c for c in colunas_ordenacao if c in df_filtrado_est.columns), None)
+    if col_encontrada:
+        df_filtrado_est = df_filtrado_est.sort_values(by=col_encontrada, ascending=False)
 
     st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
     st.markdown("<br>", unsafe_allow_html=True)
