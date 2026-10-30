@@ -1,9 +1,15 @@
 import pandas as pd
 import streamlit as st
 
+# ==========================================
+# CONFIGURAÇÃO DE AMBIENTE (CHAVE AUTOMÁTICA)
+# Deixe True para Staging (Testes) e mude para False na Main (Produção)
+# ==========================================
+AMBIENTE_STAGING = False
+
 # Configuração da página web com o ícone personalizado
 st.set_page_config(
-    page_title="Dashboard Executivo - Vonný",
+    page_title="Dashboard Executivo - Vonný" + (" [STAGING]" if AMBIENTE_STAGING else ""),
     page_icon="icone.png",
     layout="wide",
 )
@@ -98,8 +104,17 @@ def processar_estoque(uploaded_file):
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
+    # Exibe a logo oficial no topo da barra lateral usando o nome correto do GitHub
+    try:
+        st.image("logo_vonny.png", use_container_width=True)
+    except:
+        st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
+    
+    # Aviso condicional na barra lateral se for Staging
+    if AMBIENTE_STAGING:
+        st.info("🛠️ **Staging (Testes)**")
+        
     st.markdown("---")
     
     st.markdown("### Selecione o Perfil:")
@@ -125,6 +140,12 @@ with st.sidebar:
         st.warning("⚠️ Nenhum arquivo carregado")
 
 # ==========================================
+# AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
+# ==========================================
+if AMBIENTE_STAGING:
+    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
+
+# ==========================================
 # 1. HOME / SELEÇÃO DE PERFIL
 # ==========================================
 if st.session_state.perfil_atual == "Home":
@@ -143,7 +164,7 @@ if st.session_state.perfil_atual == "Home":
             
     with col2:
         st.markdown("### 📦 Visão Gerentes de Produto")
-        st.markdown("Área executiva para upload individual de planilhas de Vendas/Estoque e análise interativa.")
+        st.markdown("Área executiva para upload individual de planilhas (Estoque / Vendas) e análise interativa.")
         if st.button("Acessar Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
@@ -200,56 +221,57 @@ elif st.session_state.perfil_atual == "Gerente":
         if st.button("📊 Menu Principal Gestão", key="sub_home"):
             st.session_state.pagina_atual = "Home"
             st.rerun()
-        if st.button("📈 Módulo de Vendas", key="sub_vendas"):
-            st.session_state.pagina_atual = "Vendas"
-            st.rerun()
         if st.button("📋 Módulo de Estoques", key="sub_estoques"):
             st.session_state.pagina_atual = "Estoques"
+            st.rerun()
+        if st.button("📈 Módulo de Vendas", key="sub_vendas"):
+            st.session_state.pagina_atual = "Vendas"
             st.rerun()
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos de Vendas e Estoque abaixo ou selecione o módulo para análise:")
+        st.markdown("Faça o upload direto dos arquivos abaixo (Estoque à esquerda e Vendas à direita) ou selecione o módulo para análise:")
 
-        # Seção de Upload para o Gerente
-        with st.expander("📂 Fazer Upload das Planilhas (Vendas e Estoque)", expanded=True):
+        # Seção de Upload para o Gerente invertida: Estoque primeiro, Vendas depois
+        with st.expander("📂 Fazer Upload das Planilhas (Estoque e Vendas)", expanded=True):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
-                file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
-                if file_v is not None:
-                    st.session_state.df_vendas_fixo = processar_vendas(file_v)
-                    st.success("✅ Vendas carregadas com sucesso!")
-            with col_u2:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None:
                     st.session_state.df_estoque_fixo = processar_estoque(file_e)
                     st.success("✅ Estoque carregado com sucesso!")
+            with col_u2:
+                file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
+                if file_v is not None:
+                    st.session_state.df_vendas_fixo = processar_vendas(file_v)
+                    st.success("✅ Vendas carregadas com sucesso!")
 
         st.markdown("<br>", unsafe_allow_html=True)
         col_g1, col_g2 = st.columns(2)
 
+        # Invertido também nos botões da Home da Gestão: Estoque à esquerda, Vendas à direita
         with col_g1:
-            st.markdown("### 📈 Módulo de Vendas")
-            if st.button("Entrar em Vendas ➔", key="g_vendas"):
-                st.session_state.pagina_atual = "Vendas"
-                st.rerun()
-
-        with col_g2:
             st.markdown("### 📋 Módulo de Estoques")
             if st.button("Entrar em Estoques ➔", key="g_estoque"):
                 st.session_state.pagina_atual = "Estoques"
                 st.rerun()
 
-    elif st.session_state.pagina_atual == "Vendas":
-        st.title("📈 Relatório Executivo de Vendas")
-        if st.session_state.df_vendas_fixo is not None:
-            st.dataframe(st.session_state.df_vendas_fixo, use_container_width=True)
-        else:
-            st.warning("⚠️ Nenhuma planilha de Vendas carregada. Utilize a seção de upload na página inicial da Gestão ou na Visão Administrativa.")
+        with col_g2:
+            st.markdown("### 📈 Módulo de Vendas")
+            if st.button("Entrar em Vendas ➔", key="g_vendas"):
+                st.session_state.pagina_atual = "Vendas"
+                st.rerun()
 
     elif st.session_state.pagina_atual == "Estoques":
         st.title("📋 Relatório Consolidado de Estoque")
         if st.session_state.df_estoque_fixo is not None:
             st.dataframe(st.session_state.df_estoque_fixo, use_container_width=True)
         else:
-            st.warning("⚠️ Nenhuma planilha de Estoque carregada. Utilize a seção de upload na página inicial da Gestão ou na Visão Administrativa.")
+            st.warning("⚠️ Nenhuma planilha de Estoque carregada. Utilize a seção de upload na página inicial da Gestão.")
+
+    elif st.session_state.pagina_atual == "Vendas":
+        st.title("📈 Relatório Executivo de Vendas")
+        if st.session_state.df_vendas_fixo is not None:
+            st.dataframe(st.session_state.df_vendas_fixo, use_container_width=True)
+        else:
+            st.warning("⚠️ Nenhuma planilha de Vendas carregada. Utilize a seção de upload na página inicial da Gestão.")
