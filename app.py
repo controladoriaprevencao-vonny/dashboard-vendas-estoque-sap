@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import streamlit as st
 
@@ -13,6 +14,10 @@ st.set_page_config(
     page_icon="icone.png",
     layout="wide",
 )
+
+# Cria pastas locais persistentes no servidor para hospedar os arquivos enviados
+os.makedirs("dados_admin", exist_ok=True)
+os.makedirs("dados_gestao", exist_ok=True)
 
 # Estilo visual limpo, com a faixa pink no topo, fundo cinza encorpado e botões em cinza com texto branco e negrito
 st.markdown(
@@ -63,48 +68,59 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão para garantir persistência ao dar F5
+# Inicializa o estado da sessão para navegação
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
 
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
-if "arquivos_admin_fixos" not in st.session_state:
-    st.session_state.arquivos_admin_fixos = {}
-
-if "df_vendas_fixo" not in st.session_state:
-    st.session_state.df_vendas_fixo = None
-
-if "df_estoque_fixo" not in st.session_state:
-    st.session_state.df_estoque_fixo = None
-
 # ==========================================
-# FUNÇÕES DE PROCESSAMENTO
+# FUNÇÕES DE PROCESSAMENTO E LEITURA DO DISCO
 # ==========================================
-def processar_vendas(uploaded_file):
-    if uploaded_file is None:
+def processar_vendas(caminho_ou_arquivo):
+    if caminho_ou_arquivo is None:
         return None
     try:
-        df = pd.read_excel(uploaded_file, engine="openpyxl")
+        df = pd.read_excel(caminho_ou_arquivo, engine="openpyxl")
         if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
             df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
             df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
             df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
         return df
     except Exception as e:
-        st.error(f"Erro ao processar planilha de vendas: {e}")
         return None
 
-def processar_estoque(uploaded_file):
-    if uploaded_file is None:
+def processar_estoque(caminho_ou_arquivo):
+    if caminho_ou_arquivo is None:
         return None
     try:
-        df = pd.read_excel(uploaded_file, engine="openpyxl")
+        df = pd.read_excel(caminho_ou_arquivo, engine="openpyxl")
         return df
     except Exception as e:
-        st.error(f"Erro ao processar planilha de estoque: {e}")
         return None
+
+# Funções auxiliares para buscar os arquivos salvos no disco do servidor
+def obter_arquivos_admin_salvos():
+    arquivos = {}
+    if os.path.exists("dados_admin"):
+        for f in os.listdir("dados_admin"):
+            if f.endswith((".xlsx", ".xlsm")):
+                caminho = os.path.join("dados_admin", f)
+                arquivos[f] = processar_vendas(caminho)
+    return arquivos
+
+def obter_estoque_salvo():
+    caminho = "dados_gestao/estoque_fixo.xlsx"
+    if os.path.exists(caminho):
+        return processar_estoque(caminho)
+    return None
+
+def obter_vendas_salvo():
+    caminho = "dados_gestao/vendas_fixo.xlsx"
+    if os.path.exists(caminho):
+        return processar_vendas(caminho)
+    return None
 
 # ==========================================
 # BARRA LATERAL (Navegação de Perfis)
@@ -141,22 +157,22 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
     
-    tem_dados = (
-        st.session_state.df_vendas_fixo is not None 
-        or st.session_state.df_estoque_fixo is not None 
-        or len(st.session_state.arquivos_admin_fixos) > 0
-    )
+    admin_salvos = obter_arquivos_admin_salvos()
+    estoque_salvo = obter_estoque_salvo()
+    vendas_salvo = obter_vendas_salvo()
+    
+    tem_dados = (vendas_salvo is not None) or (estoque_salvo is not None) or (len(admin_salvos) > 0)
     
     if tem_dados:
-        st.success("✅ Dados salvos na sessão")
+        st.success("✅ Arquivos hospedados no servidor")
     else:
-        st.warning("⚠️ Nenhum arquivo carregado")
+        st.warning("⚠️ Nenhum arquivo no servidor")
 
 # ==========================================
 # AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
 # ==========================================
 if AMBIENTE_STAGING:
-    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
+    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em production.")
 
 # ==========================================
 # 1. HOME / SELEÇÃO DE PERFIL
@@ -188,7 +204,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles ficam salvos permanentemente na sessão até que você decida apagá-los pelo botão.")
+    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles ficam hospedados no servidor e resistem a atualizações de página (F5).")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -197,18 +213,21 @@ elif st.session_state.perfil_atual == "Admin":
         key="multi_upload_admin"
     )
 
-    # Processa e adiciona novos arquivos se forem enviados
+    # Salva fisicamente no disco do servidor
     if uploaded_files:
         for file in uploaded_files:
-            if file.name not in st.session_state.arquivos_admin_fixos:
-                df_proc = processar_vendas(file)
-                if df_proc is not None:
-                    st.session_state.arquivos_admin_fixos[file.name] = df_proc
+            caminho_destino = os.path.join("dados_admin", file.name)
+            with open(caminho_destino, "wb") as f:
+                f.write(file.getbuffer())
+        st.success("🎉 Arquivos enviados e hospedados com sucesso!")
+        st.rerun()
 
     st.markdown("---")
-    st.subheader("📋 Arquivos Atualmente Salvos na Sessão:")
-    if len(st.session_state.arquivos_admin_fixos) > 0:
-        for nome_arquivo, df_dados in st.session_state.arquivos_admin_fixos.items():
+    st.subheader("📋 Arquivos Atualmente Hospedados no Servidor:")
+    admin_salvos = obter_arquivos_admin_salvos()
+    
+    if len(admin_salvos) > 0:
+        for nome_arquivo, df_dados in admin_salvos.items():
             qtd_linhas = len(df_dados) if df_dados is not None else 0
             st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
         
@@ -216,10 +235,10 @@ elif st.session_state.perfil_atual == "Admin":
         
         # Botão Apagar (Visão Admin)
         with st.expander("🗑️ Botão Apagar - Gerenciar Arquivos"):
-            st.markdown("Selecione qual arquivo deseja remover da sessão:")
+            st.markdown("Selecione qual arquivo deseja remover permanentemente do servidor:")
             arquivos_para_apagar = st.multiselect(
                 "Escolha os arquivos para apagar:",
-                options=list(st.session_state.arquivos_admin_fixos.keys()),
+                options=list(admin_salvos.keys()),
                 key="select_apagar_admin"
             )
             
@@ -228,18 +247,23 @@ elif st.session_state.perfil_atual == "Admin":
                 if st.button("🗑️ Apagar Selecionados", key="btn_apagar_selecionados_admin"):
                     if arquivos_para_apagar:
                         for arq in arquivos_para_apagar:
-                            del st.session_state.arquivos_admin_fixos[arq]
+                            caminho = os.path.join("dados_admin", arq)
+                            if os.path.exists(caminho):
+                                os.remove(caminho)
                         st.success("✅ Arquivo(s) selecionado(s) apagado(s) com sucesso!")
                         st.rerun()
                     else:
                         st.warning("Selecione pelo menos um arquivo para apagar.")
             with col_ap2:
                 if st.button("🗑️ Apagar Todos os Arquivos", key="btn_apagar_todos_admin"):
-                    st.session_state.arquivos_admin_fixos = {}
+                    for arq in admin_salvos.keys():
+                        caminho = os.path.join("dados_admin", arq)
+                        if os.path.exists(caminho):
+                            os.remove(caminho)
                     st.success("✅ Todos os arquivos administrativos foram apagados!")
                     st.rerun()
     else:
-        st.info("Nenhum arquivo enviado até o momento.")
+        st.info("Nenhum arquivo hospedado no momento.")
 
 # ==========================================
 # 3. VISÃO DOS GERENTES DE PRODUTO
@@ -261,7 +285,7 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo. Eles ficam salvos na sessão mesmo se você atualizar a página (F5):")
+        st.markdown("Faça o upload direto dos arquivos abaixo. Eles ficam hospedados no servidor e não somem ao atualizar a página (F5):")
 
         # Seção de Upload para o Gerente
         with st.expander("📂 Fazer Upload das Planilhas (Estoque e Vendas)", expanded=True):
@@ -269,32 +293,38 @@ elif st.session_state.perfil_atual == "Gerente":
             with col_u1:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None:
-                    df_e = processar_estoque(file_e)
-                    if df_e is not None:
-                        st.session_state.df_estoque_fixo = df_e
+                    caminho_e = "dados_gestao/estoque_fixo.xlsx"
+                    with open(caminho_e, "wb") as f:
+                        f.write(file_e.getbuffer())
+                    st.success("✅ Estoque hospedado com sucesso!")
+                    st.rerun()
             with col_u2:
                 file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
                 if file_v is not None:
-                    df_v = processar_vendas(file_v)
-                    if df_v is not None:
-                        st.session_state.df_vendas_fixo = df_v
+                    caminho_v = "dados_gestao/vendas_fixo.xlsx"
+                    with open(caminho_v, "wb") as f:
+                        f.write(file_v.getbuffer())
+                    st.success("✅ Vendas hospedadas com sucesso!")
+                    st.rerun()
 
-        # Exibe status de carregado se já houver dados na sessão (mesmo após F5)
-        if st.session_state.df_estoque_fixo is not None:
-            st.success("✅ Planilha de Estoque está ativa na sessão.")
-        if st.session_state.df_vendas_fixo is not None:
-            st.success("✅ Planilha de Vendas está ativa na sessão.")
+        estoque_salvo = obter_estoque_salvo()
+        vendas_salvo = obter_vendas_salvo()
+
+        if estoque_salvo is not None:
+            st.success("✅ Planilha de Estoque está ativa e hospedada no servidor.")
+        if vendas_salvo is not None:
+            st.success("✅ Planilha de Vendas está ativa e hospedada no servidor.")
 
         # Botão Apagar (Visão Gestão)
-        tem_dados_gestao = (st.session_state.df_estoque_fixo is not None) or (st.session_state.df_vendas_fixo is not None)
+        tem_dados_gestao = (estoque_salvo is not None) or (vendas_salvo is not None)
         if tem_dados_gestao:
             st.markdown("<br>", unsafe_allow_html=True)
             with st.expander("🗑️ Botão Apagar - Gerenciar Planilhas de Gestão"):
-                st.markdown("Selecione qual base de dados você deseja remover:")
+                st.markdown("Selecione qual base de dados você deseja remover do servidor:")
                 opcoes_apagar_gestao = []
-                if st.session_state.df_estoque_fixo is not None:
+                if estoque_salvo is not None:
                     opcoes_apagar_gestao.append("Planilha de Estoque")
-                if st.session_state.df_vendas_fixo is not None:
+                if vendas_salvo is not None:
                     opcoes_apagar_gestao.append("Planilha de Vendas")
                 
                 escolhas_apagar = st.multiselect("Selecione o que deseja apagar:", options=opcoes_apagar_gestao, key="select_apagar_gestao")
@@ -302,10 +332,14 @@ elif st.session_state.perfil_atual == "Gerente":
                 if st.button("🗑️ Confirmar Exclusão Selecionada", key="btn_confirmar_apagar_gestao"):
                     if escolhas_apagar:
                         if "Planilha de Estoque" in escolhas_apagar:
-                            st.session_state.df_estoque_fixo = None
+                            caminho_e = "dados_gestao/estoque_fixo.xlsx"
+                            if os.path.exists(caminho_e):
+                                os.remove(caminho_e)
                         if "Planilha de Vendas" in escolhas_apagar:
-                            st.session_state.df_vendas_fixo = None
-                        st.success("✅ Base(s) selecionada(s) apagada(s) com sucesso!")
+                            caminho_v = "dados_gestao/vendas_fixo.xlsx"
+                            if os.path.exists(caminho_v):
+                                os.remove(caminho_v)
+                        st.success("✅ Base(s) selecionada(s) apagada(s) do servidor!")
                         st.rerun()
                     else:
                         st.warning("Selecione pelo menos uma opção para apagar.")
@@ -327,14 +361,16 @@ elif st.session_state.perfil_atual == "Gerente":
 
     elif st.session_state.pagina_atual == "Estoques":
         st.title("📋 Relatório Consolidado de Estoque")
-        if st.session_state.df_estoque_fixo is not None:
-            st.dataframe(st.session_state.df_estoque_fixo, use_container_width=True)
+        estoque_salvo = obter_estoque_salvo()
+        if estoque_salvo is not None:
+            st.dataframe(estoque_salvo, use_container_width=True)
         else:
-            st.warning("⚠️ Nenhuma planilha de Estoque carregada. Utilize a seção de upload na página inicial da Gestão.")
+            st.warning("⚠️ Nenhuma planilha de Estoque hospedada. Utilize a seção de upload na página inicial da Gestão.")
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
-        if st.session_state.df_vendas_fixo is not None:
-            st.dataframe(st.session_state.df_vendas_fixo, use_container_width=True)
+        vendas_salvo = obter_vendas_salvo()
+        if vendas_salvo is not None:
+            st.dataframe(vendas_salvo, use_container_width=True)
         else:
-            st.warning("⚠️ Nenhuma planilha de Vendas carregada. Utilize a seção de upload na página inicial da Gestão.")
+            st.warning("⚠️ Nenhuma planilha de Vendas hospedada. Utilize a seção de upload na página inicial da Gestão.")
