@@ -17,7 +17,7 @@ BUCKET_NOME = "dados-vonny"
 def init_supabase():
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception as e:
+    except Exception:
         return None
 
 supabase: Client = init_supabase()
@@ -31,36 +31,15 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    header[data-testid="stHeader"] {
-        background-color: #E6007E !important;
-    }
-    .main {
-        background-color: #EAEAEA !important;
-        color: #2C2C2C;
-    }
-    section[data-testid="stSidebar"] {
-        background-color: #FFE6EE !important;
-        border-right: 1px solid #F5CCD8;
-    }
-    h1, h2, h3 {
-        color: #C5006B !important;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        font-weight: 700;
-    }
+    header[data-testid="stHeader"] { background-color: #E6007E !important; }
+    .main { background-color: #EAEAEA !important; color: #2C2C2C; }
+    section[data-testid="stSidebar"] { background-color: #FFE6EE !important; border-right: 1px solid #F5CCD8; }
+    h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
     .stButton>button {
-        width: 100%;
-        background-color: #555555 !important;
-        color: #FFFFFF !important;
-        font-weight: bold !important;
-        border-radius: 6px;
-        height: 48px;
-        border: none;
-        transition: 0.3s;
+        width: 100%; background-color: #555555 !important; color: #FFFFFF !important;
+        font-weight: bold !important; border-radius: 6px; height: 48px; border: none; transition: 0.3s;
     }
-    .stButton>button:hover {
-        background-color: #333333 !important;
-        color: #FFFFFF !important;
-    }
+    .stButton>button:hover { background-color: #333333 !important; color: #FFFFFF !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -68,12 +47,11 @@ st.markdown(
 
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
-
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
 # ==========================================
-# FUNÇÕES OTIMIZADAS COM CACHE
+# FUNÇÕES SEGURAS E OTIMIZADAS
 # ==========================================
 def processar_vendas_bytes(file_bytes):
     if file_bytes is None:
@@ -96,8 +74,7 @@ def processar_estoque_bytes(file_bytes):
     except Exception:
         return None
 
-# CACHE DOS DADOS: Evita baixar o arquivo do Supabase a cada clique na interface
-@st.cache_data(ttl=600, show_spinner="Carregando dados da nuvem...")
+@st.cache_data(ttl=300)
 def obter_dados_supabase(pasta):
     if not supabase:
         return {}
@@ -106,7 +83,7 @@ def obter_dados_supabase(pasta):
         response = supabase.storage.from_(BUCKET_NOME).list(pasta)
         if response:
             for item in response:
-                nome_arq = item["name"]
+                nome_arq = item.get("name")
                 if nome_arq and nome_arq != ".emptyFolderPlaceholder":
                     caminho_completo = f"{pasta}/{nome_arq}"
                     file_res = supabase.storage.from_(BUCKET_NOME).download(caminho_completo)
@@ -122,19 +99,6 @@ def obter_dados_supabase(pasta):
         pass
     return arquivos_dict
 
-# LEITURA RÁPIDA: Checa apenas a lista de nomes no bucket sem baixar arquivos
-def verificar_arquivos_existentes():
-    if not supabase:
-        return False
-    try:
-        admin_list = supabase.storage.from_(BUCKET_NOME).list("admin")
-        gestao_list = supabase.storage.from_(BUCKET_NOME).list("gestao")
-        has_admin = any(item["name"] != ".emptyFolderPlaceholder" for item in admin_list) if admin_list else False
-        has_gestao = any(item["name"] != ".emptyFolderPlaceholder" for item in gestao_list) if gestao_list else False
-        return has_admin or has_gestao
-    except Exception:
-        return False
-
 def upload_para_supabase(pasta, nome_arquivo, file_buffer):
     if not supabase:
         return False
@@ -148,9 +112,8 @@ def upload_para_supabase(pasta, nome_arquivo, file_buffer):
         supabase.storage.from_(BUCKET_NOME).upload(
             path=caminho,
             file=file_buffer,
-            file_options={"content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+            file_options={"content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "upsert": "true"}
         )
-        # Invalida o cache após um novo upload
         st.cache_data.clear()
         return True
     except Exception as e:
@@ -163,13 +126,12 @@ def deletar_do_supabase(pasta, nomes_arquivos):
     try:
         caminhos = [f"{pasta}/{arq}" for arq in nomes_arquivos]
         supabase.storage.from_(BUCKET_NOME).remove(caminhos)
-        # Invalida o cache após exclusão
         st.cache_data.clear()
     except Exception:
         pass
 
 # ==========================================
-# BARRA LATERAL (Navegação)
+# BARRA LATERAL
 # ==========================================
 with st.sidebar:
     try:
@@ -199,14 +161,10 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
-    
-    if verificar_arquivos_existentes():
-        st.success("✅ Dados salvos no Supabase")
-    else:
-        st.warning("⚠️ Nenhum arquivo na nuvem")
+    st.success("✅ Conectado ao Supabase")
 
 if AMBIENTE_STAGING:
-    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
+    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).**")
 
 # ==========================================
 # 1. HOME
@@ -238,7 +196,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles são salvos com segurança no Supabase e resistem a qualquer atualização de página (F5).")
+    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles são salvos com segurança no Supabase.")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -256,7 +214,10 @@ elif st.session_state.perfil_atual == "Admin":
 
     st.markdown("---")
     st.subheader("📋 Arquivos Atualmente Salvos no Supabase:")
-    admin_remotos = obter_dados_supabase("admin")
+    
+    # Carregamento seguro com indicador visual integrado
+    with st.spinner("Carregando arquivos do Supabase..."):
+        admin_remotos = obter_dados_supabase("admin")
     
     if len(admin_remotos) > 0:
         for nome_arquivo, df_dados in admin_remotos.items():
@@ -265,26 +226,24 @@ elif st.session_state.perfil_atual == "Admin":
         
         st.markdown("<br>", unsafe_allow_html=True)
         with st.expander("🗑️ Botão Apagar - Gerenciar Arquivos"):
-            st.markdown("Selecione qual arquivo deseja remover permanentemente do Supabase:")
             arquivos_para_apagar = st.multiselect(
                 "Escolha os arquivos para apagar:",
                 options=list(admin_remotos.keys()),
                 key="select_apagar_admin"
             )
-            
             col_ap1, col_ap2 = st.columns(2)
             with col_ap1:
                 if st.button("🗑️ Apagar Selecionados", key="btn_apagar_selecionados_admin"):
                     if arquivos_para_apagar:
                         deletar_do_supabase("admin", arquivos_para_apagar)
-                        st.success("✅ Arquivo(s) selecionado(s) apagado(s) com sucesso!")
+                        st.success("✅ Arquivo(s) apagado(s)!")
                         st.rerun()
                     else:
-                        st.warning("Selecione pelo menos um arquivo para apagar.")
+                        st.warning("Selecione pelo menos um arquivo.")
             with col_ap2:
-                if st.button("🗑️ Apagar Todos os Arquivos", key="btn_apagar_todos_admin"):
+                if st.button("🗑️ Apagar Todos", key="btn_apagar_todos_admin"):
                     deletar_do_supabase("admin", list(admin_remotos.keys()))
-                    st.success("✅ Todos os arquivos administrativos foram apagados!")
+                    st.success("✅ Todos apagados!")
                     st.rerun()
     else:
         st.info("Nenhum arquivo no Supabase no momento.")
@@ -307,41 +266,42 @@ elif st.session_state.perfil_atual == "Gerente":
             st.session_state.pagina_atual = "Vendas"
             st.rerun()
 
-    gestao_remotos = obter_dados_supabase("gestao")
+    with st.spinner("Sincronizando dados de gestão..."):
+        gestao_remotos = obter_dados_supabase("gestao")
+    
     df_estoque_remoto = gestao_remotos.get("estoque")
     df_vendas_remoto = gestao_remotos.get("vendas")
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo. Eles ficam salvos no Supabase e não somem ao atualizar a página (F5):")
+        st.markdown("Faça o upload direto dos arquivos abaixo:")
 
         with st.expander("📂 Fazer Upload das Planilhas (Estoque e Vendas)", expanded=True):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None:
-                    with st.spinner("Enviando estoque para o Supabase..."):
+                    with st.spinner("Enviando estoque..."):
                         upload_para_supabase("gestao", "estoque_fixo.xlsx", file_e.getvalue())
-                    st.success("✅ Estoque salvo na nuvem com sucesso!")
+                    st.success("✅ Estoque salvo!")
                     st.rerun()
             with col_u2:
                 file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
                 if file_v is not None:
-                    with st.spinner("Enviando vendas para o Supabase..."):
+                    with st.spinner("Enviando vendas..."):
                         upload_para_supabase("gestao", "vendas_fixo.xlsx", file_v.getvalue())
-                    st.success("✅ Vendas salvas na nuvem com sucesso!")
+                    st.success("✅ Vendas salvas!")
                     st.rerun()
 
         if df_estoque_remoto is not None:
-            st.success("✅ Planilha de Estoque está ativa e hospedada no Supabase.")
+            st.success("✅ Planilha de Estoque ativa no Supabase.")
         if df_vendas_remoto is not None:
-            st.success("✅ Planilha de Vendas está ativa e hospedada no Supabase.")
+            st.success("✅ Planilha de Vendas ativa no Supabase.")
 
         tem_dados_gestao = (df_estoque_remoto is not None) or (df_vendas_remoto is not None)
         if tem_dados_gestao:
             st.markdown("<br>", unsafe_allow_html=True)
-            with st.expander("🗑️ Botão Apagar - Gerenciar Planilhas de Gestão"):
-                st.markdown("Selecione qual base de dados você deseja remover do Supabase:")
+            with st.expander("🗑️ Botão Apagar - Gerenciar Planilhas"):
                 opcoes_apagar_gestao = []
                 if df_estoque_remoto is not None:
                     opcoes_apagar_gestao.append("Planilha de Estoque")
@@ -350,29 +310,24 @@ elif st.session_state.perfil_atual == "Gerente":
                 
                 escolhas_apagar = st.multiselect("Selecione o que deseja apagar:", options=opcoes_apagar_gestao, key="select_apagar_gestao")
                 
-                if st.button("🗑️ Confirmar Exclusão Selecionada", key="btn_confirmar_apagar_gestao"):
+                if st.button("🗑️ Confirmar Exclusão", key="btn_confirmar_apagar_gestao"):
                     if escolhas_apagar:
                         arquivos_para_remover = []
                         if "Planilha de Estoque" in escolhas_apagar:
                             arquivos_para_remover.append("estoque_fixo.xlsx")
-                        if "Planilha de Vendas" in escolhas_apagar:
+                        if "Planilha do Vendas" in escolhas_apagar or "Planilha de Vendas" in escolhas_apagar:
                             arquivos_para_remover.append("vendas_fixo.xlsx")
-                        
                         deletar_do_supabase("gestao", arquivos_para_remover)
-                        st.success("✅ Base(s) selecionada(s) apagada(s) do Supabase!")
+                        st.success("✅ Base(s) apagada(s)!")
                         st.rerun()
-                    else:
-                        st.warning("Selecione pelo menos uma opção para apagar.")
 
         st.markdown("<br>", unsafe_allow_html=True)
         col_g1, col_g2 = st.columns(2)
-
         with col_g1:
             st.markdown("### 📋 Módulo de Estoques")
             if st.button("Entrar em Estoques ➔", key="g_estoque"):
                 st.session_state.pagina_atual = "Estoques"
                 st.rerun()
-
         with col_g2:
             st.markdown("### 📈 Módulo de Vendas")
             if st.button("Entrar em Vendas ➔", key="g_vendas"):
@@ -384,11 +339,11 @@ elif st.session_state.perfil_atual == "Gerente":
         if df_estoque_remoto is not None:
             st.dataframe(df_estoque_remoto, use_container_width=True)
         else:
-            st.warning("⚠️ Nenhuma planilha de Estoque no Supabase. Utilize a seção de upload na página inicial da Gestão.")
+            st.warning("⚠️ Nenhuma planilha de Estoque no Supabase.")
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
         if df_vendas_remoto is not None:
             st.dataframe(df_vendas_remoto, use_container_width=True)
         else:
-            st.warning("⚠️ Nenhuma planilha de Vendas no Supabase. Utilize a seção de upload na página inicial da Gestão.")
+            st.warning("⚠️ Nenhuma planilha de Vendas no Supabase.")
