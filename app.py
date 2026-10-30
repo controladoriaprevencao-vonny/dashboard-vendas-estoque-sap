@@ -57,6 +57,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ==========================================
+# DETECÇÃO AUTOMÁTICA DE AMBIENTE (STAGING vs MAIN)
+# ==========================================
+is_staging = False
+try:
+    # Verifica se a palavra 'staging' está presente na URL ou cabeçalhos do Streamlit Cloud
+    query_params = st.query_params
+    headers = st.context.headers if hasattr(st, "context") else {}
+    host = str(headers.get("Host", ""))
+    
+    if "staging" in host.lower() or "staging" in str(query_params).lower():
+        is_staging = True
+except:
+    pass
+
 # Inicializa o estado da sessão para navegação e arquivos persistentes
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
@@ -98,13 +113,17 @@ def processar_estoque(uploaded_file):
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    # Exibe a logo oficial no topo da barra lateral (Certifique-se de salvar o arquivo como 'logo_vonny.png' no GitHub)
+    # Exibe a logo oficial no topo da barra lateral
     try:
-        st.image("logo_vonny.png", use_container_width=True)
+        st.image("LOGO-VONNY2025-cabecalho-r98vmxv319emgxxr1r5bl4bgfroxugi3ti5lj0qnqm.png", use_container_width=True)
     except:
         st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
+    # Se estiver no ambiente de staging, mostra o aviso na barra lateral também
+    if is_staging:
+        st.info("🛠️ **Staging (Testes)**")
+        
     st.markdown("---")
     
     st.markdown("### Selecione o Perfil:")
@@ -128,6 +147,12 @@ with st.sidebar:
         st.success("✅ Dados carregados na sessão")
     else:
         st.warning("⚠️ Nenhum arquivo carregado")
+
+# ==========================================
+# AVISO CONDICIONAL (SÓ APARECE SE FOR STAGING)
+# ==========================================
+if is_staging:
+    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
 
 # ==========================================
 # 1. HOME / SELEÇÃO DE PERFIL
