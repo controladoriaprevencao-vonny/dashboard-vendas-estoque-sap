@@ -22,12 +22,14 @@ st.set_page_config(
     layout="wide",
 )
 
+# Estilização para garantir que as células e tabelas expandam e mostrem o conteúdo inteiro
 st.markdown(
     """
     <style>
     header[data-testid="stHeader"] { background-color: #E6007E !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
     h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
+    div[data-testid="stDataFrame"] { width: 100% !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -61,7 +63,6 @@ if df_estoque is not None:
     
     f_col1, f_col2, f_col3, f_col4 = st.columns(4)
     
-    # Identificação das colunas principais
     colunas_loja_possiveis = ["Centro", "Divisão", "Divisao", "Loja"]
     col_loja_encontrada = next((c for c in colunas_loja_possiveis if c in df_estoque.columns), None)
     
@@ -80,7 +81,7 @@ if df_estoque is not None:
         with f_col1:
             st.info("Coluna 'Centro' não encontrada.")
 
-    # --- FILTRO 2: MATERIAL (Considera o filtro de Loja) ---
+    # --- FILTRO 2: MATERIAL ---
     df_f2 = df_f1.copy()
     if "Material" in df_estoque.columns:
         materiais_opcoes = sorted(df_f2["Material"].dropna().astype(str).unique())
@@ -89,7 +90,7 @@ if df_estoque is not None:
         if material_escolhido_est:
             df_f2 = df_f2[df_f2["Material"].astype(str).isin(material_escolhido_est)]
 
-    # --- FILTRO 3: GRUPO DE MERCADORIAS (Considera Loja e Material) ---
+    # --- FILTRO 3: GRUPO DE MERCADORIAS ---
     df_f3 = df_f2.copy()
     if "Grupo de mercadorias" in df_estoque.columns:
         grupos_opcoes = sorted(df_f3["Grupo de mercadorias"].dropna().astype(str).unique())
@@ -98,10 +99,9 @@ if df_estoque is not None:
         if grupo_escolhido_est:
             df_f3 = df_f3[df_f3["Grupo de mercadorias"].astype(str).isin(grupo_escolhido_est)]
 
-    # --- FILTRO 4: DEPÓSITO (Considera Loja, Material e Grupo de Mercadorias) ---
+    # --- FILTRO 4: DEPÓSITO ---
     df_filtrado_est = df_f3.copy()
     if col_dep_encontrada:
-        # Extrai apenas os depósitos disponíveis com base nos filtros anteriores
         depositos_opcoes = sorted(
             [str(int(x)) for x in pd.to_numeric(df_filtrado_est[col_dep_encontrada].dropna(), errors="coerce").unique() if pd.notna(x)]
         )
