@@ -1,7 +1,7 @@
 import streamlit as st
 
 # ==========================================
-# CONFIGURAÇÃO DE AMBIENTE
+# CONFIGURAÇÃO DE AMBIENTE E ESTILO VISUAL
 # ==========================================
 AMBIENTE_STAGING = True
 
@@ -11,18 +11,60 @@ st.set_page_config(
     layout="wide",
 )
 
+# Estilização visual customizada (Tema Vonný: Rosa e Cinza Claro)
 st.markdown(
     """
     <style>
-    header[data-testid="stHeader"] { background-color: #E6007E !important; }
-    .main { background-color: #EAEAEA !important; color: #2C2C2C; }
-    section[data-testid="stSidebar"] { background-color: #FFE6EE !important; border-right: 1px solid #F5CCD8; }
-    h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
-    .stButton>button {
-        width: 100%; background-color: #555555 !important; color: #FFFFFF !important;
-        font-weight: bold !important; border-radius: 6px; height: 48px; border: none; transition: 0.3s;
+    /* Cabeçalho superior do Streamlit */
+    header[data-testid="stHeader"] {
+        background-color: #E6007E !important;
     }
-    .stButton>button:hover { background-color: #333333 !important; color: #FFFFFF !important; }
+    
+    /* Fundo principal da aplicação */
+    .main {
+        background-color: #EAEAEA !important;
+        color: #2C2C2C !important;
+    }
+    
+    /* Fundo da área de conteúdo geral */
+    [data-testid="stAppViewContainer"] {
+        background-color: #EAEAEA !important;
+        color: #2C2C2C !important;
+    }
+    
+    /* Barra lateral */
+    section[data-testid="stSidebar"] {
+        background-color: #FFE6EE !important;
+        border-right: 1px solid #F5CCD8 !important;
+    }
+    
+    /* Títulos */
+    h1, h2, h3 {
+        color: #C5006B !important;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-weight: 700 !important;
+    }
+    
+    /* Textos gerais */
+    p, span, label, div {
+        color: #2C2C2C !important;
+    }
+    
+    /* Botões personalizados */
+    .stButton>button {
+        width: 100%;
+        background-color: #555555 !important;
+        color: #FFFFFF !important;
+        font-weight: bold !important;
+        border-radius: 6px;
+        height: 48px;
+        border: none;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #333333 !important;
+        color: #FFFFFF !important;
+    }
     </style>
 """,
     unsafe_allow_html=True,
