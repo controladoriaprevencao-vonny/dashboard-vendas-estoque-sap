@@ -55,25 +55,11 @@ if "df_estoque_fixo" not in st.session_state:
 # FUNÇÕES COM CACHE PARA LEITURA RÁPIDA
 # ==========================================
 @st.cache_data
-def processar_vendas(uploaded_file):
+def processar_excel(uploaded_file):
     if uploaded_file is None:
         return None
-    df = pd.read_excel(uploaded_file)
-    if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
-        df["Quantidade faturada"] = pd.to_numeric(
-            df["Quantidade faturada"], errors="coerce"
-        ).fillna(0)
-        df["Preço interno"] = pd.to_numeric(
-            df["Preço interno"], errors="coerce"
-        ).fillna(0)
-        df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
-    return df
-
-@st.cache_data
-def processar_estoque(uploaded_file):
-    if uploaded_file is None:
-        return None
-    df = pd.read_excel(uploaded_file)
+    # Lê suportando tanto .xlsx quanto .xlsm
+    df = pd.read_excel(uploaded_file, engine="openpyxl")
     return df
 
 # ==========================================
@@ -134,12 +120,12 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez. Eles ficarão salvos e fixos na sessão.")
+    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`). Eles ficarão salvos e fixos na sessão.")
 
-    # Botão único de upload aceitando múltiplos arquivos
+    # Botão único de upload aceitando múltiplos arquivos incluindo .xlsm
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
-        type=["xlsx"],
+        type=["xlsx", "xlsm"],
         accept_multiple_files=True,
         key="multi_upload_admin",
         label_visibility="collapsed"
@@ -147,15 +133,19 @@ elif st.session_state.perfil_atual == "Admin":
 
     if uploaded_files:
         for file in uploaded_files:
-            # Armazena cada arquivo na sessão usando o nome do arquivo como chave
-            st.session_state.arquivos_admin_fixos[file.name] = file
+            # Salva o arquivo e já processa em DataFrame para uso futuro
+            st.session_state.arquivos_admin_fixos[file.name] = {
+                "objeto": file,
+                "df": processar_excel(file)
+            }
         st.success(f"🎉 {len(uploaded_files)} arquivo(s) processado(s) e fixado(s) com sucesso!")
 
     st.markdown("---")
     st.subheader("📋 Arquivos Atualmente Fixados na Sessão:")
     if len(st.session_state.arquivos_admin_fixos) > 0:
-        for nome_arquivo in st.session_state.arquivos_admin_fixos.keys():
-            st.markdown(f"- 📄 **{nome_arquivo}**")
+        for nome_arquivo, dados in st.session_state.arquivos_admin_fixos.items():
+            qtd_linhas = len(dados["df"]) if dados["df"] is not None else 0
+            st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
     else:
         st.info("Nenhum arquivo enviado até o momento.")
 
@@ -170,10 +160,6 @@ elif st.session_state.perfil_atual == "Admin":
 # ==========================================
 elif st.session_state.perfil_atual == "Gerente":
     
-    # Para as demonstrações das tabelas abaixo, mantemos a compatibilidade
-    df_vendas = st.session_state.df_vendas_fixo
-    df_estoque = st.session_state.df_estoque_fixo
-
     with st.sidebar:
         st.markdown("---")
         st.markdown("### 🧭 Módulos Gerenciais")
@@ -208,16 +194,8 @@ elif st.session_state.perfil_atual == "Gerente":
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
-        if df_vendas is not None:
-            # Estrutura de vendas padrão
-            pass
-        else:
-            st.warning("⚠️ O arquivo de Vendas não está disponível no momento.")
+        st.info("💡 Módulo aguardando definição de cruzamento com os arquivos administrativos.")
 
     elif st.session_state.pagina_atual == "Estoques":
         st.title("📋 Relatório Consolidado de Estoque")
-        if df_estoque is not None:
-            # Estrutura de estoque padrão
-            pass
-        else:
-            st.warning("⚠️ O arquivo de Estoques não está disponível no momento.")
+        st.info("💡 Módulo aguardando definição de cruzamento com os arquivos administrativos.")
