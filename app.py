@@ -8,27 +8,33 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual corporativo e limpo
+# Estilo visual corporativo e personalizado com a identidade da Vonný
 st.markdown(
     """
     <style>
     .main {
-        background-color: #f8f9fa;
+        background-color: #fcfbfa;
     }
     h1, h2, h3 {
-        color: #1F4E79;
+        color: #2C2C2C;
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
     .stButton>button {
         width: 100%;
-        background-color: #1F4E79;
+        background-color: #2C2C2C;
         color: white;
-        font-weight: bold;
-        border-radius: 8px;
-        height: 50px;
+        font-weight: 500;
+        border-radius: 6px;
+        height: 48px;
+        border: none;
+        transition: 0.3s;
     }
     .stButton>button:hover {
-        background-color: #153a5b;
+        background-color: #D4A373;
         color: white;
+    }
+    .css-1d391kg {
+        background-color: #f4f1ea;
     }
     </style>
 """,
@@ -52,21 +58,23 @@ if "df_estoque_fixo" not in st.session_state:
     st.session_state.df_estoque_fixo = None
 
 # ==========================================
-# FUNÇÕES COM CACHE PARA LEITURA RÁPIDA
+# FUNÇÃO DE LEITURA COMPATÍVEL (.XLSX / .XLSM)
 # ==========================================
 @st.cache_data
 def processar_excel(uploaded_file):
     if uploaded_file is None:
         return None
-    # Lê suportando tanto .xlsx quanto .xlsm
-    df = pd.read_excel(uploaded_file, engine="openpyxl")
-    return df
+    try:
+        df = pd.read_excel(uploaded_file, engine="openpyxl")
+        return df
+    except Exception as e:
+        return None
 
 # ==========================================
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    st.header("⚙️ Painel de Controle")
+    st.header("✨ Vonný | Painel")
     
     st.markdown("### Selecione o Perfil:")
     if st.button("🏠 Menu Principal"):
@@ -94,22 +102,22 @@ with st.sidebar:
 # 1. HOME / SELEÇÃO DE PERFIL
 # ==========================================
 if st.session_state.perfil_atual == "Home":
-    st.title("📊 Dashboard Executivo - Vonný")
-    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP. Escolha abaixo qual visão deseja acessar:")
+    st.title("✨ Dashboard Executivo - Vonný")
+    st.markdown("Bem-vindo ao sistema de relatórios gerenciais. Escolha abaixo qual visão deseja acessar:")
     
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### 🛠️ Visão Administrativa")
-        st.markdown("Área restrita para upload múltiplo e fixação de planilhas administrativas.")
+        st.markdown("Área restrita para upload múltiplo de planilhas (`.xlsx` e `.xlsm`) e fixação de bases.")
         if st.button("Acessar Administrativo ➔", key="btn_admin"):
             st.session_state.perfil_atual = "Admin"
             st.rerun()
             
     with col2:
         st.markdown("### 📦 Visão Gerentes de Produto")
-        st.markdown("Área executiva para análise interativa dos relatórios de vendas, estoques e filtros por loja.")
+        st.markdown("Área executiva para análise interativa dos relatórios de vendas, estoques e indicadores.")
         if st.button("Acessar Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
@@ -122,7 +130,6 @@ elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
     st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`). Eles ficarão salvos e fixos na sessão.")
 
-    # Botão único de upload aceitando múltiplos arquivos incluindo .xlsm
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
         type=["xlsx", "xlsm"],
@@ -133,7 +140,6 @@ elif st.session_state.perfil_atual == "Admin":
 
     if uploaded_files:
         for file in uploaded_files:
-            # Salva o arquivo e já processa em DataFrame para uso futuro
             st.session_state.arquivos_admin_fixos[file.name] = {
                 "objeto": file,
                 "df": processar_excel(file)
