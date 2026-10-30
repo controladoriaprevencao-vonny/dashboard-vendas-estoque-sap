@@ -63,7 +63,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão para navegação e arquivos persistentes (Sobrevivem ao F5)
+# Inicializa o estado da sessão para garantir persistência ao dar F5
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
 
@@ -80,25 +80,31 @@ if "df_estoque_fixo" not in st.session_state:
     st.session_state.df_estoque_fixo = None
 
 # ==========================================
-# FUNÇÕES COM CACHE PARA LEITURA RÁPIDA
+# FUNÇÕES DE PROCESSAMENTO
 # ==========================================
-@st.cache_data
 def processar_vendas(uploaded_file):
     if uploaded_file is None:
         return None
-    df = pd.read_excel(uploaded_file, engine="openpyxl")
-    if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
-        df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
-        df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
-        df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
-    return df
+    try:
+        df = pd.read_excel(uploaded_file, engine="openpyxl")
+        if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
+            df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
+            df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
+            df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
+        return df
+    except Exception as e:
+        st.error(f"Erro ao processar planilha de vendas: {e}")
+        return None
 
-@st.cache_data
 def processar_estoque(uploaded_file):
     if uploaded_file is None:
         return None
-    df = pd.read_excel(uploaded_file, engine="openpyxl")
-    return df
+    try:
+        df = pd.read_excel(uploaded_file, engine="openpyxl")
+        return df
+    except Exception as e:
+        st.error(f"Erro ao processar planilha de estoque: {e}")
+        return None
 
 # ==========================================
 # BARRA LATERAL (Navegação de Perfis)
@@ -135,7 +141,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
     
-    # Verifica se há dados carregados persistidos na sessão
     tem_dados = (
         st.session_state.df_vendas_fixo is not None 
         or st.session_state.df_estoque_fixo is not None 
@@ -183,37 +188,33 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez. Eles ficam salvos permanentemente na sessão até que você decida apagá-los.")
+    st.markdown("Selecione ou arraste quantos arquivos precisar. Eles ficam salvos permanentemente na sessão até que você decida apagá-los pelo botão.")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
         type=["xlsx", "xlsm"],
         accept_multiple_files=True,
-        key="multi_upload_admin",
-        label_visibility="collapsed"
+        key="multi_upload_admin"
     )
 
+    # Processa e persiste imediatamente no dicionário de sessão
     if uploaded_files:
         for file in uploaded_files:
-            # Salva no dicionário da sessão para persistir mesmo após F5
-            st.session_state.arquivos_admin_fixos[file.name] = {
-                "objeto": file,
-                "df": processar_vendas(file)
-            }
-        st.success(f"🎉 {len(uploaded_files)} arquivo(s) processado(s) e salvos com sucesso!")
+            if file.name not in st.session_state.arquivos_admin_fixos:
+                df_proc = processar_vendas(file)
+                if df_proc is not None:
+                    st.session_state.arquivos_admin_fixos[file.name] = df_proc
 
     st.markdown("---")
     st.subheader("📋 Arquivos Atualmente Salvos na Sessão:")
     if len(st.session_state.arquivos_admin_fixos) > 0:
-        for nome_arquivo, dados in st.session_state.arquivos_admin_fixos.items():
-            qtd_linhas = len(dados["df"]) if dados["df"] is not None else 0
+        for nome_arquivo, df_dados in st.session_state.arquivos_admin_fixos.items():
+            qtd_linhas = len(df_dados) if df_dados is not None else 0
             st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # ==========================================
-        # BOTÃO APAGAR (VISÃO ADMIN)
-        # ==========================================
+        # Botão Apagar (Visão Admin)
         with st.expander("🗑️ Botão Apagar - Gerenciar Arquivos"):
             st.markdown("Selecione qual arquivo deseja remover da sessão:")
             arquivos_para_apagar = st.multiselect(
@@ -235,7 +236,6 @@ elif st.session_state.perfil_atual == "Admin":
             with col_ap2:
                 if st.button("🗑️ Apagar Todos os Arquivos", key="btn_apagar_todos_admin"):
                     st.session_state.arquivos_admin_fixos = {}
-                    st.cache_data.clear()
                     st.success("✅ Todos os arquivos administrativos foram apagados!")
                     st.rerun()
     else:
@@ -261,7 +261,7 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo (Estoque à esquerda e Vendas à direita). Eles ficam salvos na sessão mesmo se você atualizar a página (F5):")
+        st.markdown("Faça o upload direto dos arquivos abaixo. Eles ficam salvos na sessão mesmo se você atualizar a página (F5):")
 
         # Seção de Upload para o Gerente
         with st.expander("📂 Fazer Upload das Planilhas (Estoque e Vendas)", expanded=True):
@@ -269,17 +269,23 @@ elif st.session_state.perfil_atual == "Gerente":
             with col_u1:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None:
-                    st.session_state.df_estoque_fixo = processar_estoque(file_e)
-                    st.success("✅ Estoque salvo com sucesso!")
+                    df_e = processar_estoque(file_e)
+                    if df_e is not None:
+                        st.session_state.df_estoque_fixo = df_e
             with col_u2:
                 file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
                 if file_v is not None:
-                    st.session_state.df_vendas_fixo = processar_vendas(file_v)
-                    st.success("✅ Vendas salvas com sucesso!")
+                    df_v = processar_vendas(file_v)
+                    if df_v is not None:
+                        st.session_state.df_vendas_fixo = df_v
 
-        # ==========================================
-        # BOTÃO APAGAR (VISÃO GESTÃO)
-        # ==========================================
+        # Exibe status de carregado se já houver dados na sessão
+        if st.session_state.df_estoque_fixo is not None:
+            st.success("✅ Planilha de Estoque está ativa na sessão.")
+        if st.session_state.df_vendas_fixo is not None:
+            st.success("✅ Planilha de Vendas está ativa na sessão.")
+
+        # Botão Apagar (Visão Gestão)
         tem_dados_gestao = (st.session_state.df_estoque_fixo is not None) or (st.session_state.df_vendas_fixo is not None)
         if tem_dados_gestao:
             st.markdown("<br>", unsafe_allow_html=True)
