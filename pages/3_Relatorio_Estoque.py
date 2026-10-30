@@ -17,7 +17,7 @@ def init_supabase():
 supabase: Client = init_supabase()
 
 st.set_page_config(
-    page_title="Relatório de Vendas - Vonný",
+    page_title="Relatório de Estoque - Vonný",
     page_icon="icone.png",
     layout="wide",
 )
@@ -39,106 +39,94 @@ try:
 except Exception:
     pass
 
-st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Visualização de vendas consolidadas e detalhadas por Loja e Material, com ordenação por maiores valores líquidos.")
+st.title("📋 Relatório Consolidado de Estoque")
+st.markdown("Área de análise e filtros avançados do estoque atual, ordenados pela coluna **Val.utiliz.libre** (positivos no topo, do maior para o menor).")
 
 @st.cache_data(ttl=300)
-def baixar_vendas():
+def baixar_estoque():
     if not supabase:
         return None
     try:
-        file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/vendas_fixo.xlsx")
+        file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/estoque_fixo.xlsx")
         if file_res:
-            df = pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
-            
-            # Tratamento de datas para formato DD/MM/AAAA limpo
-            for col in df.columns:
-                if "data" in col.lower():
-                    df[col] = pd.to_datetime(df[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna(df[col])
-            return df
+            return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
     except Exception:
         return None
     return None
 
-df_vendas = baixar_vendas()
+df_estoque = baixar_estoque()
 
-if df_vendas is not None:
+if df_estoque is not None:
     st.markdown("### 🔍 Filtros Interativos")
-    f1, f2, f3 = st.columns(3)
-    df_filtrado = df_vendas.copy()
+    f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+    df_filtrado_est = df_estoque.copy()
 
-    if "Divisão" in df_vendas.columns:
-        lojas = sorted(df_vendas["Divisão"].dropna().astype(str).unique())
-        with f1:
-            loja_selecionada = st.multiselect("Filtrar por Loja (Divisão)", options=lojas, key="filtro_loja_vendas")
-        if loja_selecionada:
-            df_filtrado = df_filtrado[df_filtrado["Divisão"].astype(str).isin(loja_selecionada)]
+    if "Divisão" in df_estoque.columns:
+        lojas_est = sorted(df_estoque["Divisão"].dropna().astype(str).unique())
+        with f_col1:
+            loja_escolhida_est = st.multiselect("Loja (Divisão)", options=lojas_est, key="filtro_loja_est")
+        if loja_escolhida_est:
+            df_filtrado_est = df_filtrado_est[df_filtrado_est["Divisão"].astype(str).isin(loja_escolhida_est)]
 
-    if "Material" in df_vendas.columns:
-        materiais = sorted(df_vendas["Material"].dropna().astype(str).unique())
-        with f2:
-            material_selecionado = st.multiselect("Filtrar por Material", options=materiais, key="filtro_material_vendas")
-        if material_selecionado:
-            df_filtrado = df_filtrado[df_filtrado["Material"].astype(str).isin(material_selecionado)]
+    if "Material" in df_estoque.columns:
+        materiais_est = sorted(df_estoque["Material"].dropna().astype(str).unique())
+        with f_col2:
+            material_escolhido_est = st.multiselect("Material", options=materiais_est, key="filtro_mat_est")
+        if material_escolhido_est:
+            df_filtrado_est = df_filtrado_est[df_filtrado_est["Material"].astype(str).isin(material_escolhido_est)]
 
-    if "Grupo de mercadorias" in df_vendas.columns:
-        grupos = sorted(df_vendas["Grupo de mercadorias"].dropna().astype(str).unique())
-        with f3:
-            grupo_selecionado = st.multiselect("Filtrar por Grupo de Mercadorias", options=grupos, key="filtro_grupo_vendas")
-        if grupo_selecionado:
-            df_filtrado = df_filtrado[df_filtrado["Grupo de mercadorias"].astype(str).isin(grupo_selecionado)]
+    if "Grupo de mercadorias" in df_estoque.columns:
+        grupos_est = sorted(df_estoque["Grupo de mercadorias"].dropna().astype(str).unique())
+        with f_col3:
+            grupo_escolhido_est = st.multiselect("Grupo de Mercadorias", options=grupos_est, key="filtro_grupo_est")
+        if grupo_escolhido_est:
+            df_filtrado_est = df_filtrado_est[df_filtrado_est["Grupo de mercadorias"].astype(str).isin(grupo_escolhido_est)]
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    m1, m2 = st.columns(2)
-    with m1:
-        total_qtd = df_filtrado["Quantidade faturada"].sum() if "Quantidade faturada" in df_filtrado.columns else 0
-        st.metric("📦 Quantidade Total Faturada (Filtrado)", f"{total_qtd:,.0f}".replace(",", "."))
-    with m2:
-        total_val = df_filtrado["Valor líquido"].sum() if "Valor líquido" in df_filtrado.columns else 0
-        st.metric("💰 Valor Líquido Total (Filtrado)", f"R$ {total_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-
-    # --- TABELA 1: CONSOLIDADA ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("### 📊 Visão Consolidada (Agrupada)")
+    col_deposito_possiveis = ["Depósito", "Deposito", "Dep."]
+    col_dep_encontrada = next((c for c in col_deposito_possiveis if c in df_estoque.columns), None)
     
-    colunas_agrupamento = [c for c in ["Divisão", "Material", "Denominação de item", "Grupo de mercadorias"] if c in df_filtrado.columns]
-    colunas_soma = [c for c in ["Quantidade faturada", "Valor líquido", "Subtotal 1", "Preço interno"] if c in df_filtrado.columns]
-    
-    if colunas_agrupamento and colunas_soma:
-        df_consolidado = df_filtrado.groupby(colunas_agrupamento, as_index=False)[colunas_soma].sum()
+    if col_dep_encontrada:
+        depositos_est = sorted(
+            [str(int(x)) for x in pd.to_numeric(df_estoque[col_dep_encontrada].dropna(), errors="coerce").unique() if pd.notna(x)]
+        )
+        with f_col4:
+            dep_escolhido_est = st.multiselect("Depósito", options=depositos_est, key="filtro_dep_est")
+        
+        if dep_escolhido_est:
+            df_filtrado_est = df_filtrado_est[
+                pd.to_numeric(df_filtrado_est[col_dep_encontrada], errors="coerce")
+                .fillna(-999999)
+                .astype(int)
+                .astype(str)
+                .isin(dep_escolhido_est)
+            ]
     else:
-        df_consolidado = df_filtrado.copy()
+        with f_col4:
+            st.info("Coluna 'Depósito' não encontrada.")
 
-    if "Valor líquido" in df_consolidado.columns:
-        df_consolidado = df_consolidado.sort_values(by="Valor líquido", ascending=False)
+    # ORDENAÇÃO EXCLUSIVA: Coluna "Val.utiliz.libre" (Positivos primeiro, do maior para o menor)
+    col_alvo = "Val.utiliz.libre"
+    if col_alvo in df_filtrado_est.columns:
+        df_filtrado_est[col_alvo] = pd.to_numeric(df_filtrado_est[col_alvo], errors="coerce").fillna(0)
+        df_filtrado_est["_prioridade"] = df_filtrado_est[col_alvo].apply(lambda x: 1 if x >= 0 else 0)
+        df_filtrado_est = df_filtrado_est.sort_values(by=["_prioridade", col_alvo], ascending=[False, False])
+        df_filtrado_est = df_filtrado_est.drop(columns=["_prioridade"])
 
-    config_colunas_cons = {}
-    for col in df_consolidado.columns:
-        col_lower = col.lower()
-        if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
-            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="R$ %,.2f")
-        elif "quantidade" in col_lower or "utiliz" in col_lower:
-            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="%,.0f")
-
-    st.dataframe(df_consolidado, use_container_width=True, column_config=config_colunas_cons)
-
-    # --- TABELA 2: COMPLETA / SEM CONSOLIDAÇÃO ---
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("### 📋 Visão Completa (Detalhada / Sem Consolidação)")
+    st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    df_detalhado = df_filtrado.copy()
-    if "Valor líquido" in df_detalhado.columns:
-        df_detalhado = df_detalhado.sort_values(by="Valor líquido", ascending=False)
-
-    config_colunas_det = {}
-    for col in df_detalhado.columns:
+    config_colunas_est = {}
+    for col in df_filtrado_est.columns:
         col_lower = col.lower()
-        if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
-            config_colunas_det[col] = st.column_config.NumberColumn(col, format="R$ %,.2f")
-        elif "quantidade" in col_lower or "utiliz" in col_lower:
-            config_colunas_det[col] = st.column_config.NumberColumn(col, format="%,.0f")
+        if "val" in col_lower or "valor" in col_lower:
+            config_colunas_est[col] = st.column_config.NumberColumn(
+                col, format="R$ %,.2f", help="Valores em Real"
+            )
+        elif "utiliz" in col_lower or "quant" in col_lower or "estoque" in col_lower:
+            config_colunas_est[col] = st.column_config.NumberColumn(
+                col, format="%,.0f", help="Quantidades"
+            )
 
-    st.dataframe(df_detalhado, use_container_width=True, column_config=config_colunas_det)
-
+    st.dataframe(df_filtrado_est, use_container_width=True, column_config=config_colunas_est)
 else:
-    st.warning("⚠️ Nenhuma planilha de Vendas encontrada no Supabase. Vá até a Central de Upload para enviar uma.")
+    st.warning("⚠️ Nenhuma planilha de Estoque encontrada no Supabase. Faça o upload na aba de Gestão.")
