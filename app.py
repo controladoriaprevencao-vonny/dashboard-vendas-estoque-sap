@@ -1,5 +1,6 @@
 import os
 import io
+import unicodedata
 import pandas as pd
 import streamlit as st
 from supabase import create_client, Client
@@ -51,8 +52,15 @@ if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
 # ==========================================
-# FUNÇÕES DE SUPABASE STORAGE E CACHE LEVE
+# FUNÇÕES DE TRATAMENTO E SUPABASE
 # ==========================================
+def limpar_nome_arquivo(nome):
+    """Remove acentos, espaços e caracteres especiais para evitar erro no Supabase"""
+    nfkd_form = unicodedata.normalize('NFKD', nome)
+    texto_sem_acento = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+    # Substitui espaços por underline
+    return texto_sem_acento.replace(" ", "_")
+
 @st.cache_data(ttl=300)
 def listar_nomes_arquivos_supabase(pasta):
     if not supabase:
@@ -88,7 +96,8 @@ def upload_para_supabase(pasta, nome_arquivo, file_buffer):
     if not supabase:
         return False, "Cliente Supabase não inicializado."
     try:
-        caminho = f"{pasta}/{nome_arquivo}"
+        nome_tratado = limpar_nome_arquivo(nome_arquivo)
+        caminho = f"{pasta}/{nome_tratado}"
         try:
             supabase.storage.from_(BUCKET_NOME).remove([caminho])
         except Exception:
@@ -180,7 +189,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste os arquivos. O envio para a nuvem é automático.")
+    st.markdown("Selecione ou arraste os arquivos. O envio para a nuvem é automático (acentos e espaços são tratados automaticamente).")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
