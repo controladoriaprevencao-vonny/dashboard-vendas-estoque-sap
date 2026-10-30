@@ -87,7 +87,6 @@ if df_estoque is not None:
     col_dep_encontrada = next((c for c in col_deposito_possiveis if c in df_estoque.columns), None)
     
     if col_dep_encontrada:
-        # Converte para numérico, preenche nulos e transforma em inteiro formatado como string limpa
         depositos_est = sorted(
             [str(int(x)) for x in pd.to_numeric(df_estoque[col_dep_encontrada].dropna(), errors="coerce").unique() if pd.notna(x)]
         )
@@ -95,7 +94,6 @@ if df_estoque is not None:
             dep_escolhido_est = st.multiselect("Depósito", options=depositos_est, key="filtro_dep_est")
         
         if dep_escolhido_est:
-            # Filtra comparando convertendo a coluna original do dataframe também para inteiro/string limpa
             df_filtrado_est = df_filtrado_est[
                 pd.to_numeric(df_filtrado_est[col_dep_encontrada], errors="coerce")
                 .fillna(-999999)
@@ -117,6 +115,19 @@ if df_estoque is not None:
 
     st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
     st.markdown("<br>", unsafe_allow_html=True)
-    st.dataframe(df_filtrado_est, use_container_width=True)
+    
+    # Configuração de colunas do estoque (formatando Val.utiliz.libre como R$ e quantidades com separador de milhar)
+    config_colunas_est = {}
+    for col in df_filtrado_est.columns:
+        if "val" in col.lower() or "valor" in col.lower():
+            config_colunas_est[col] = st.column_config.NumberColumn(
+                col, format="R$ %.2f", help="Valores em Real"
+            )
+        elif "utiliz" in col.lower() or "quant" in col.lower() or "estoque" in col.lower():
+            config_colunas_est[col] = st.column_config.NumberColumn(
+                col, format="%,.0f", help="Quantidades"
+            )
+
+    st.dataframe(df_filtrado_est, use_container_width=True, column_config=config_colunas_est)
 else:
     st.warning("⚠️ Nenhuma planilha de Estoque encontrada no Supabase. Faça o upload na aba de Gestão.")
