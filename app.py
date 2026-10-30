@@ -12,7 +12,6 @@ st.markdown(
     """
     <style>
     header[data-testid="stHeader"] { background-color: #E6007E !important; }
-    section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
     h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
     </style>
 """,
@@ -24,16 +23,19 @@ if AMBIENTE_STAGING:
 
 st.title("📊 Dashboard Executivo - Vonný")
 st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase.")
-st.markdown("Utilize o **menu lateral esquerdo** para navegar entre a Central de Uploads e os Relatórios.")
+st.markdown("Como o menu lateral está oculto, utilize os links diretos abaixo para acessar os módulos:")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Abordagem limpa baseada na navegação nativa do Streamlit
-st.info("""
-📂 **Como navegar no sistema:**
-- Acesse o **menu lateral esquerdo** (barra lateral do Streamlit) para alternar livremente entre:
-  * **Upload e Formatação**
-  * **Relatório de Vendas**
-  * **Relatório de Estoque**
-  * **Imagens e Ativos**
-""")
+# Usando st.page_link com os nomes atuais exatos dos arquivos
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("### 📤 Central de Uploads")
+    st.page_link("pages/1_Upload_e_Formatacao.py", label="Abrir Central de Uploads ➔", use_container_width=True)
+
+with col2:
+    st.markdown("### 📊 Relatórios e Ativos")
+    st.page_link("pages/2_Relatorio_Vendas.py", label="Abrir Relatório de Vendas ➔", use_container_width=True)
+    st.page_link("pages/3_Relatorio_Estoque.py", label="Abrir Relatório de Estoque ➔", use_container_width=True)
+    st.page_link("pages/4_Imagens_e_Ativos.py", label="Abrir Imagens e Ativos ➔", use_container_width=True)
