@@ -17,6 +17,28 @@ def init_supabase():
 
 supabase: Client = init_supabase()
 
+st.set_page_config(
+    page_title="Relatório de Estoque - Vonný",
+    page_icon="icone.png",
+    layout="wide",
+)
+
+st.markdown(
+    """
+    <style>
+    header[data-testid="stHeader"] { background-color: #E6007E !important; }
+    section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
+    h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
+    .stButton>button {
+        width: 100%; background-color: #555555 !important; color: #FFFFFF !important;
+        font-weight: bold !important; border-radius: 6px; height: 48px; border: none; transition: 0.3s;
+    }
+    .stButton>button:hover { background-color: #333333 !important; color: #FFFFFF !important; }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
 st.title("📋 Relatório Consolidado de Estoque")
 st.markdown("Área de análise e filtros avançados do estoque atual.")
 
