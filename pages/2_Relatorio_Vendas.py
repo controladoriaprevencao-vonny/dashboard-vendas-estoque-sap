@@ -42,7 +42,7 @@ except Exception:
     pass
 
 st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Visualização de vendas consolidadas e detalhadas com filtros inteligentes de devolução por material.")
+st.markdown("Visualização de vendas consolidadas e detalhadas com filtros inteligentes de devolução ordenados por Material.")
 
 @st.cache_data(ttl=300)
 def baixar_vendas():
@@ -172,6 +172,9 @@ if df_vendas is not None:
         col_dev_possiveis = ["Devolução", "Devolucao"]
         col_dev_encontrada = next((c for c in col_dev_possiveis if c in df_det_filtrado.columns), None)
         
+        # Variável de controle para saber se o filtro inteligente foi acionado
+        filtro_inteligente_ativo = False
+
         if col_dev_encontrada:
             dev_ops = sorted(df_det_filtrado[col_dev_encontrada].dropna().astype(str).unique())
             with fd3:
@@ -179,23 +182,29 @@ if df_vendas is not None:
             if sel_dev:
                 df_det_filtrado = df_det_filtrado[df_det_filtrado[col_dev_encontrada].astype(str).isin(sel_dev)]
 
-            # NOVO FILTRO INTELIGENTE: Se selecionar um valor aqui, traz TODAS as linhas dos materiais que possuem esse status de devolução
+            # NOVO FILTRO INTELIGENTE DE DEVOLUÇÃO POR MATERIAL
             with fd4:
                 sel_dev_inteligente = st.multiselect("Análise: Trazer Material Completo com Devolução", options=dev_ops, key="det_dev_inteligente")
             
             if sel_dev_inteligente and "Material" in df_det_filtrado.columns:
-                # Descobre quais materiais possuem o valor selecionado
                 materiais_com_devolucao = df_det_filtrado[df_det_filtrado[col_dev_encontrada].astype(str).isin(sel_dev_inteligente)]["Material"].unique()
-                # Filtra a tabela para exibir todas as linhas desses materiais (com ou sem devolução)
                 df_det_filtrado = df_det_filtrado[df_det_filtrado["Material"].isin(materiais_com_devolucao)]
+                filtro_inteligente_ativo = True
         else:
             with fd3:
                 st.info("Coluna 'Devolução' não encontrada.")
             with fd4:
                 st.info("Indisponível.")
 
-    if "Valor líquido" in df_det_filtrado.columns:
-        df_det_filtrado = df_det_filtrado.sort_values(by="Valor líquido", ascending=False)
+    # ORDENAÇÃO: Se o filtro inteligente de devolução estiver ativo, ordena por Material. Caso contrário, ordena por Valor líquido (maior para o menor).
+    if filtro_inteligente_ativo and "Material" in df_det_filtrado.columns:
+        if "Valor líquido" in df_det_filtrado.columns:
+            df_det_filtrado = df_det_filtrado.sort_values(by=["Material", "Valor líquido"], ascending=[True, False])
+        else:
+            df_det_filtrado = df_det_filtrado.sort_values(by="Material", ascending=True)
+    else:
+        if "Valor líquido" in df_det_filtrado.columns:
+            df_det_filtrado = df_det_filtrado.sort_values(by="Valor líquido", ascending=False)
 
     config_colunas_det = {}
     for col in df_det_filtrado.columns:
