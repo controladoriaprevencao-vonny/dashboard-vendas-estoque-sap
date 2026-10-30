@@ -1,64 +1,63 @@
 import pandas as pd
 import streamlit as st
 
-# Configuração da página web
+# Configuração da página web com o ícone personalizado
 st.set_page_config(
     page_title="Dashboard Executivo - Vonný",
     page_icon="icone.png",
     layout="wide",
 )
 
-# Estilo visual limpo, elegante e alinhado com a marca Vonný
+# Estilo visual limpo, com a faixa pink no topo, fundo cinza encorpado e botões em cinza com texto branco e negrito
 st.markdown(
     """
     <style>
-    /* Faixa pink no topo da página */
+    /* Faixa pink oficial no topo absoluto da página */
     header[data-testid="stHeader"] {
         background-color: #E6007E !important;
     }
     
-    /* Fundo do painel principal em cinza claro */
+    /* Fundo do painel principal (Lado direito) em cinza mais escuro */
     .main {
-        background-color: #F4F4F6 !important;
+        background-color: #EAEAEA !important;
         color: #2C2C2C;
     }
     
-    /* Barra lateral em tom rosa claro */
+    /* Barra lateral em tom rosa claro da marca */
     section[data-testid="stSidebar"] {
         background-color: #FFE6EE !important;
         border-right: 1px solid #F5CCD8;
     }
     
-    /* Títulos em magenta da marca */
+    /* Títulos e cabeçalhos em rosa escuro/magenta */
     h1, h2, h3 {
         color: #C5006B !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         font-weight: 700;
     }
     
-    /* Botões elegantes */
+    /* Botões estilizados em cinza elegante */
     .stButton>button {
         width: 100%;
-        background-color: #FFFFFF !important;
-        color: #2C2C2C !important;
-        border: 1px solid #D5CBD0 !important;
+        background-color: #555555 !important;
+        color: #FFFFFF !important;
+        font-weight: bold !important;
         border-radius: 6px;
         height: 48px;
-        font-weight: 600;
+        border: none;
         transition: 0.3s;
     }
     
     .stButton>button:hover {
-        background-color: #E6007E !important;
+        background-color: #333333 !important;
         color: #FFFFFF !important;
-        border-color: #E6007E !important;
     }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão
+# Inicializa o estado da sessão para navegação e arquivos persistentes
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
 
@@ -74,37 +73,36 @@ if "df_vendas_fixo" not in st.session_state:
 if "df_estoque_fixo" not in st.session_state:
     st.session_state.df_estoque_fixo = None
 
-# Função de leitura compatível (.xlsx / .xlsm)
+# ==========================================
+# FUNÇÕES COM CACHE PARA LEITURA RÁPIDA
+# ==========================================
 @st.cache_data
 def processar_excel(uploaded_file):
     if uploaded_file is None:
         return None
-    try:
-        df = pd.read_excel(uploaded_file, engine="openpyxl")
-        return df
-    except Exception as e:
-        return None
+    # Lê suportando tanto .xlsx quanto .xlsm
+    df = pd.read_excel(uploaded_file, engine="openpyxl")
+    return df
 
 # ==========================================
-# BARRA LATERAL
+# BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    st.markdown("<h2 style='color: #E6007E; text-align: center;'>VONNÝ</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 12px; color: #666;'>COSMÉTICOS</p>", unsafe_allow_html=True)
-    
+    st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown("### Selecione o Perfil:")
     
-    if st.button("🏠 Menu Principal", key="nav_home"):
+    st.markdown("### Selecione o Perfil:")
+    if st.button("🏠 Menu Principal", key="sb_home"):
         st.session_state.perfil_atual = "Home"
         st.session_state.pagina_atual = "Home"
         st.rerun()
         
-    if st.button("🛠️ Visão Administrativa", key="nav_admin"):
+    if st.button("🛠️ Visão Administrativa", key="sb_admin"):
         st.session_state.perfil_atual = "Admin"
         st.rerun()
         
-    if st.button("📦 Visão Gestão / Produtos", key="nav_gerente"):
+    if st.button("📦 Visão Gestão / Produtos", key="sb_gerente"):
         st.session_state.perfil_atual = "Gerente"
         st.session_state.pagina_atual = "Home"
         st.rerun()
@@ -120,23 +118,23 @@ with st.sidebar:
 # 1. HOME / SELEÇÃO DE PERFIL
 # ==========================================
 if st.session_state.perfil_atual == "Home":
-    st.title("✨ Dashboard Executivo - Vonný")
-    st.markdown("Bem-vindo ao sistema de relatórios gerenciais. Escolha abaixo qual visão deseja acessar:")
+    st.title("📊 Dashboard Executivo - Vonný")
+    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP. Escolha abaixo qual visão deseja acessar:")
     
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### 🛠️ Visão Administrativa")
-        st.markdown("Área restrita para upload múltiplo de planilhas (`.xlsx` e `.xlsm`) e fixação de bases.")
-        if st.button("Acessar Administrativo ➔", key="btn_admin_home"):
+        st.markdown("Área restrita para upload múltiplo e fixação de planilhas administrativas.")
+        if st.button("Acessar Administrativo ➔", key="btn_admin"):
             st.session_state.perfil_atual = "Admin"
             st.rerun()
             
     with col2:
         st.markdown("### 📦 Visão Gerentes de Produto")
-        st.markdown("Área executiva para análise interativa dos relatórios de vendas, estoques e indicadores.")
-        if st.button("Acessar Gestão ➔", key="btn_gerente_home"):
+        st.markdown("Área executiva para análise interativa dos relatórios de vendas, estoques e filtros por loja.")
+        if st.button("Acessar Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
             st.rerun()
@@ -146,7 +144,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`).")
+    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`). Eles ficarão salvos e fixos na sessão.")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -174,7 +172,7 @@ elif st.session_state.perfil_atual == "Admin":
         st.info("Nenhum arquivo enviado até o momento.")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 Limpar Todos os Arquivos Fixos", key="btn_limpar"):
+    if st.button("🔄 Limpar Todos os Arquivos Fixos", key="btn_limpar_admin"):
         st.session_state.arquivos_admin_fixos = {}
         st.cache_data.clear()
         st.rerun()
