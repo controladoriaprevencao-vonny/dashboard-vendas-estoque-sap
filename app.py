@@ -32,14 +32,10 @@ col1, col2 = st.columns(2)
 with col1:
     st.markdown("### 📤 Central de Uploads")
     st.markdown("Envie e gerencie as planilhas administrativas, de estoque e de vendas de forma isolada.")
-    
-    # Botão interativo real usando st.page_link para a página na pasta pages/
-    st.page_link("pages/1_📤_Upload_e_Formatacao.py", label="Ir para Central de Uploads ➔", use_container_width=True)
+    st.page_link("pages/1_Upload_e_Formatacao.py", label="Ir para Central de Uploads ➔", use_container_width=True)
 
 with col2:
     st.markdown("### 📊 Dashboards e Relatórios")
     st.markdown("Consulte os dados consolidados, filtre por loja, material, grupo e depósito.")
-    
-    # Links rápidos para as páginas de relatórios
-    st.page_link("pages/2_📈_Relatorio_Vendas.py", label="Ver Relatório de Vendas ➔", use_container_width=True)
-    st.page_link("pages/3_📦_Relatorio_Estoque.py", label="Ver Relatório de Estoque ➔", use_container_width=True)
+    st.page_link("pages/2_Relatorio_Vendas.py", label="Ver Relatório de Vendas ➔", use_container_width=True)
+    st.page_link("pages/3_Relatorio_Estoque.py", label="Ver Relatório de Estoque ➔", use_container_width=True)
