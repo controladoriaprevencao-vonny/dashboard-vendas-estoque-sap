@@ -82,15 +82,27 @@ if df_estoque is not None:
         if grupo_escolhido_est:
             df_filtrado_est = df_filtrado_est[df_filtrado_est["Grupo de mercadorias"].astype(str).isin(grupo_escolhido_est)]
 
+    # Tratamento da coluna de Depósito para exibir apenas números inteiros sem o .0
     col_deposito_possiveis = ["Depósito", "Deposito", "Dep."]
     col_dep_encontrada = next((c for c in col_deposito_possiveis if c in df_estoque.columns), None)
     
     if col_dep_encontrada:
-        depositos_est = sorted(df_estoque[col_dep_encontrada].dropna().astype(str).unique())
+        # Converte para numérico, preenche nulos e transforma em inteiro formatado como string limpa
+        depositos_est = sorted(
+            [str(int(x)) for x in pd.to_numeric(df_estoque[col_dep_encontrada].dropna(), errors="coerce").unique() if pd.notna(x)]
+        )
         with f_col4:
             dep_escolhido_est = st.multiselect("Depósito", options=depositos_est, key="filtro_dep_est")
+        
         if dep_escolhido_est:
-            df_filtrado_est = df_filtrado_est[df_filtrado_est[col_dep_encontrada].astype(str).isin(dep_escolhido_est)]
+            # Filtra comparando convertendo a coluna original do dataframe também para inteiro/string limpa
+            df_filtrado_est = df_filtrado_est[
+                pd.to_numeric(df_filtrado_est[col_dep_encontrada], errors="coerce")
+                .fillna(-999999)
+                .astype(int)
+                .astype(str)
+                .isin(dep_escolhido_est)
+            ]
     else:
         with f_col4:
             st.info("Coluna 'Depósito' não encontrada.")
@@ -98,16 +110,9 @@ if df_estoque is not None:
     # ORDENAÇÃO EXCLUSIVA: Coluna "Val.utiliz.libre" (Positivos primeiro, do maior para o menor)
     col_alvo = "Val.utiliz.libre"
     if col_alvo in df_filtrado_est.columns:
-        # Converte para numérico caso venha como texto
         df_filtrado_est[col_alvo] = pd.to_numeric(df_filtrado_est[col_alvo], errors="coerce").fillna(0)
-        
-        # Cria uma coluna auxiliar para priorizar positivos (>= 0) em cima dos negativos (< 0)
         df_filtrado_est["_prioridade"] = df_filtrado_est[col_alvo].apply(lambda x: 1 if x >= 0 else 0)
-        
-        # Ordena: primeiro pela prioridade (1 em cima, 0 embaixo) e depois pelo valor descrescente
         df_filtrado_est = df_filtrado_est.sort_values(by=["_prioridade", col_alvo], ascending=[False, False])
-        
-        # Remove a coluna auxiliar para não poluir a tabela exibida
         df_filtrado_est = df_filtrado_est.drop(columns=["_prioridade"])
 
     st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
