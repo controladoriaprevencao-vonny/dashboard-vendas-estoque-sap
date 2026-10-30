@@ -12,6 +12,7 @@ st.markdown(
     """
     <style>
     header[data-testid="stHeader"] { background-color: #E6007E !important; }
+    section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
     h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
     </style>
 """,
@@ -23,19 +24,43 @@ if AMBIENTE_STAGING:
 
 st.title("📊 Dashboard Executivo - Vonný")
 st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase.")
-st.markdown("Como o menu lateral está oculto, utilize os links diretos abaixo para acessar os módulos:")
 
-st.markdown("<br>", unsafe_allow_html=True)
+# Criando as abas profissionais do sistema
+tab_home, tab_upload, tab_vendas, tab_estoque, tab_ativos = st.tabs([
+    "🏠 Início", 
+    "📤 Central de Uploads", 
+    "📈 Relatório de Vendas", 
+    "📦 Relatório de Estoque", 
+    "🎨 Imagens e Ativos"
+])
 
-# Usando st.page_link com os nomes atuais exatos dos arquivos
-col1, col2 = st.columns(2)
+with tab_home:
+    st.markdown("### Bem-vindo ao Painel Principal")
+    st.markdown("Utilize as abas acima para navegar instantaneamente entre os módulos do sistema sem nenhum risco de erro de carregamento.")
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.info("📤 **Central de Uploads:** Envie e gerencie planilhas administrativas, de estoque e vendas.")
+    with col2:
+        st.info("📊 **Relatórios:** Consulte dados consolidados e aplique filtros por loja e material.")
 
-with col1:
-    st.markdown("### 📤 Central de Uploads")
-    st.page_link("pages/1_Upload_e_Formatacao.py", label="Abrir Central de Uploads ➔", use_container_width=True)
+with tab_upload:
+    st.header("📤 Central de Uploads e Formatação")
+    st.write("Insira aqui o código do seu arquivo `1_Upload_e_Formatacao.py`")
+    # Cole aqui o código correspondente à sua página de uploads
 
-with col2:
-    st.markdown("### 📊 Relatórios e Ativos")
-    st.page_link("pages/2_Relatorio_Vendas.py", label="Abrir Relatório de Vendas ➔", use_container_width=True)
-    st.page_link("pages/3_Relatorio_Estoque.py", label="Abrir Relatório de Estoque ➔", use_container_width=True)
-    st.page_link("pages/4_Imagens_e_Ativos.py", label="Abrir Imagens e Ativos ➔", use_container_width=True)
+with tab_vendas:
+    st.header("📈 Relatório de Vendas")
+    st.write("Insira aqui o código do seu arquivo `2_Relatorio_Vendas.py`")
+    # Cole aqui o código correspondente à sua página de vendas
+
+with tab_estoque:
+    st.header("📦 Relatório de Estoque")
+    st.write("Insira aqui o código do seu arquivo `3_Relatorio_Estoque.py`")
+    # Cole aqui o código correspondente à sua página de estoque
+
+with tab_ativos:
+    st.header("🎨 Imagens e Ativos")
+    st.write("Insira aqui o código do seu arquivo `4_Imagens_e_Ativos.py`")
+    # Cole aqui o código correspondente à sua página de ativos
