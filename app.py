@@ -1,9 +1,15 @@
 import pandas as pd
 import streamlit as st
 
+# ==========================================
+# CONFIGURAÇÃO DE AMBIENTE (CHAVE AUTOMÁTICA)
+# Deixe True para Staging (Testes) e mude para False na Main (Produção)
+# ==========================================
+AMBIENTE_STAGING = True
+
 # Configuração da página web com o ícone personalizado
 st.set_page_config(
-    page_title="Dashboard Executivo - Vonný",
+    page_title="Dashboard Executivo - Vonný" + (" [STAGING]" if AMBIENTE_STAGING else ""),
     page_icon="icone.png",
     layout="wide",
 )
@@ -57,21 +63,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ==========================================
-# DETECÇÃO AUTOMÁTICA DE AMBIENTE (STAGING vs MAIN)
-# ==========================================
-is_staging = False
-try:
-    # Verifica se a palavra 'staging' está presente na URL ou cabeçalhos do Streamlit Cloud
-    query_params = st.query_params
-    headers = st.context.headers if hasattr(st, "context") else {}
-    host = str(headers.get("Host", ""))
-    
-    if "staging" in host.lower() or "staging" in str(query_params).lower():
-        is_staging = True
-except:
-    pass
-
 # Inicializa o estado da sessão para navegação e arquivos persistentes
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
@@ -120,8 +111,8 @@ with st.sidebar:
         st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
-    # Se estiver no ambiente de staging, mostra o aviso na barra lateral também
-    if is_staging:
+    # Aviso condicional na barra lateral se for Staging
+    if AMBIENTE_STAGING:
         st.info("🛠️ **Staging (Testes)**")
         
     st.markdown("---")
@@ -149,9 +140,9 @@ with st.sidebar:
         st.warning("⚠️ Nenhum arquivo carregado")
 
 # ==========================================
-# AVISO CONDICIONAL (SÓ APARECE SE FOR STAGING)
+# AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
 # ==========================================
-if is_staging:
+if AMBIENTE_STAGING:
     st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
 
 # ==========================================
