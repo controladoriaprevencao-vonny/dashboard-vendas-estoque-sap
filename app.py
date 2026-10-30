@@ -8,39 +8,39 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual corporativo baseado na identidade da Vonný (Clean, Minimalista e Sofisticado)
+# Estilo visual idêntico ao site da Vonný (Rosa Magenta, Fundo Branco e Detalhes Limpos)
 st.markdown(
     """
     <style>
-    /* Fundo principal da aplicação em tom off-white limpo */
+    /* Fundo principal da aplicação em branco limpo como o site */
     .main {
-        background-color: #FAF8F5;
+        background-color: #FFFFFF;
         color: #2C2C2C;
     }
     
-    /* Barra lateral em tom creme suave e elegante */
+    /* Barra lateral simulando o estilo clean do site */
     section[data-testid="stSidebar"] {
-        background-color: #F2EFE9;
-        border-right: 1px solid #E5E0D8;
+        background-color: #FAFAFA;
+        border-right: 1px solid #EEEEEE;
     }
     
-    /* Títulos e subtítulos com a cor corporativa refinada */
+    /* Títulos e cabeçalhos */
     h1, h2, h3 {
-        color: #1A1A1A !important;
+        color: #E6007E !important; /* Rosa Magenta oficial da Vonný */
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
     
     /* Textos gerais */
     p, span, label, div {
-        color: #4A4A4A;
+        color: #333333;
     }
 
-    /* Botões personalizados com o tom sofisticado da marca */
+    /* Botões personalizados com o Rosa Magenta da marca */
     .stButton>button {
         width: 100%;
-        background-color: #2C2C2C;
+        background-color: #E6007E;
         color: #FFFFFF;
-        font-weight: 500;
+        font-weight: 600;
         border-radius: 6px;
         height: 48px;
         border: none;
@@ -48,8 +48,8 @@ st.markdown(
     }
     
     .stButton>button:hover {
-        background-color: #D4A373;
-        color: #121212;
+        background-color: #C5006B;
+        color: #FFFFFF;
     }
     </style>
 """,
