@@ -40,7 +40,7 @@ except Exception:
     pass
 
 st.title("📋 Relatório Consolidado de Estoque")
-st.markdown("Área de análise e filtros avançados do estoque atual, ordenados pela coluna **Val.utiliz.libre** (positivos no topo, do maior para o menor)[cite: 4, 6].")
+st.markdown("Área de análise e filtros avançados do estoque atual, ordenados pela coluna **Val.utiliz.libre** (positivos no topo, do maior para o menor).")
 
 @st.cache_data(ttl=300)
 def baixar_estoque():
@@ -59,23 +59,23 @@ df_estoque = baixar_estoque()
 if df_estoque is not None:
     st.markdown("### 🔍 Filtros Interativos")
     
-    # 4 colunas para os filtros: Loja, Material, Grupo e Depósito
+    # 4 colunas para os filtros: Centro/Loja, Material, Grupo e Depósito
     f_col1, f_col2, f_col3, f_col4 = st.columns(4)
     df_filtrado_est = df_estoque.copy()
 
-    # 1. Filtro por Loja (Divisão)
-    colunas_loja_possiveis = ["Divisão", "Divisao", "Loja"]
+    # 1. Filtro por Centro / Loja (Verificando Centro, Divisão e Loja)
+    colunas_loja_possiveis = ["Centro", "Divisão", "Divisao", "Loja"]
     col_loja_encontrada = next((c for c in colunas_loja_possiveis if c in df_estoque.columns), None)
     
     if col_loja_encontrada:
         lojas_est = sorted(df_estoque[col_loja_encontrada].dropna().astype(str).unique())
         with f_col1:
-            loja_escolhida_est = st.multiselect("Loja (Divisão)", options=lojas_est, key="filtro_loja_est")
+            loja_escolhida_est = st.multiselect("Centro / Loja", options=lojas_est, key="filtro_loja_est")
         if loja_escolhida_est:
             df_filtrado_est = df_filtrado_est[df_filtrado_est[col_loja_encontrada].astype(str).isin(loja_escolhida_est)]
     else:
         with f_col1:
-            st.info("Coluna 'Divisão' não encontrada.")
+            st.info("Coluna 'Centro' não encontrada.")
 
     # 2. Filtro por Material
     if "Material" in df_estoque.columns:
