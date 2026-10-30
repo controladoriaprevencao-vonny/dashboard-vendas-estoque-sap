@@ -8,48 +8,56 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual personalizado alinhado com a identidade da Vonný (Rosa clarinho + Pink e Branco em negrito)
+# Estilo visual ajustado conforme solicitado
 st.markdown(
     """
     <style>
-    /* Fundo principal da aplicação em rosa bem clarinho */
+    /* Fundo do painel principal (Lado direito) em cinza bem clarinho */
     .main {
-        background-color: #FFF0F5;
+        background-color: #F8F9FA !important;
         color: #2C2C2C;
     }
     
-    /* Barra lateral em tom suave combinando */
+    /* Barra lateral em tom rosa claro da marca */
     section[data-testid="stSidebar"] {
-        background-color: #FFE6EE;
+        background-color: #FFE6EE !important;
         border-right: 1px solid #F5CCD8;
     }
     
-    /* Títulos e cabeçalhos em Pink com fundo/contraste ou destaque forte */
+    /* Títulos e cabeçalhos em rosa escuro/magenta */
     h1, h2, h3 {
         color: #C5006B !important;
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
         font-weight: 700;
     }
     
-    /* Textos gerais */
+    /* Textos gerais do painel */
     p, span, label, div {
         color: #333333;
     }
 
-    /* Botões personalizados com o Pink da marca, fonte branca e negrito */
+    /* Botões em rosa bem escuro/magenta */
     .stButton>button {
         width: 100%;
-        background-color: #E6007E;
-        color: #FFFFFF !important;
-        font-weight: bold;
+        background-color: #E6007E !important;
         border-radius: 6px;
         height: 48px;
         border: none;
         transition: 0.3s;
     }
+
+    /* Força OBRIGATORIAMENTE o texto dos botões a ficar em BRANCO e NEGRITO */
+    .stButton>button p, .stButton>button span, .stButton>button div {
+        color: #FFFFFF !important;
+        font-weight: bold !important;
+        font-size: 15px;
+    }
     
     .stButton>button:hover {
-        background-color: #C5006B;
+        background-color: #C5006B !important;
+    }
+
+    .stButton>button:hover p, .stButton>button:hover span {
         color: #FFFFFF !important;
     }
     </style>
@@ -142,82 +150,3 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 # 2. VISÃO ADMINISTRATIVA (UPLOAD MÚLTIPLO)
 # ==========================================
-elif st.session_state.perfil_atual == "Admin":
-    st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`). Eles ficarão salvos e fixos na sessão.")
-
-    uploaded_files = st.file_uploader(
-        "Upload de Arquivos Administrativos",
-        type=["xlsx", "xlsm"],
-        accept_multiple_files=True,
-        key="multi_upload_admin",
-        label_visibility="collapsed"
-    )
-
-    if uploaded_files:
-        for file in uploaded_files:
-            st.session_state.arquivos_admin_fixos[file.name] = {
-                "objeto": file,
-                "df": processar_excel(file)
-            }
-        st.success(f"🎉 {len(uploaded_files)} arquivo(s) processado(s) e fixado(s) com sucesso!")
-
-    st.markdown("---")
-    st.subheader("📋 Arquivos Atualmente Fixados na Sessão:")
-    if len(st.session_state.arquivos_admin_fixos) > 0:
-        for nome_arquivo, dados in st.session_state.arquivos_admin_fixos.items():
-            qtd_linhas = len(dados["df"]) if dados["df"] is not None else 0
-            st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
-    else:
-        st.info("Nenhum arquivo enviado até o momento.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 Limpar Todos os Arquivos Fixos"):
-        st.session_state.arquivos_admin_fixos = {}
-        st.cache_data.clear()
-        st.rerun()
-
-# ==========================================
-# 3. VISÃO DOS GERENTES DE PRODUTO
-# ==========================================
-elif st.session_state.perfil_atual == "Gerente":
-    
-    with st.sidebar:
-        st.markdown("---")
-        st.markdown("### 🧭 Módulos Gerenciais")
-        if st.button("📊 Menu Principal Gestão"):
-            st.session_state.pagina_atual = "Home"
-            st.rerun()
-        if st.button("📈 Módulo de Vendas"):
-            st.session_state.pagina_atual = "Vendas"
-            st.rerun()
-        if st.button("📋 Módulo de Estoques"):
-            st.session_state.pagina_atual = "Estoques"
-            st.rerun()
-
-    if st.session_state.pagina_atual == "Home":
-        st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Selecione abaixo o módulo que deseja analisar:")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        col_g1, col_g2 = st.columns(2)
-
-        with col_g1:
-            st.markdown("### 📈 Módulo de Vendas")
-            if st.button("Entrar em Vendas ➔", key="g_vendas"):
-                st.session_state.pagina_atual = "Vendas"
-                st.rerun()
-
-        with col_g2:
-            st.markdown("### 📋 Módulo de Estoques")
-            if st.button("Entrar em Estoques ➔", key="g_estoque"):
-                st.session_state.pagina_atual = "Estoques"
-                st.rerun()
-
-    elif st.session_state.pagina_atual == "Vendas":
-        st.title("📈 Relatório Executivo de Vendas")
-        st.info("💡 Módulo aguardando definição de cruzamento com os arquivos administrativos.")
-
-    elif st.session_state.pagina_atual == "Estoques":
-        st.title("📋 Relatório Consolidado de Estoque")
-        st.info("💡 Módulo aguardando definição de cruzamento com os arquivos administrativos.")
