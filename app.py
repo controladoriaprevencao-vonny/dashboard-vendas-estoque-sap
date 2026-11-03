@@ -124,7 +124,6 @@ elif st.session_state.pagina_atual == "Upload":
         if supabase:
             try:
                 arquivos_encontrados = []
-                # Varredura inteligente para lidar com variações de acentuação na pasta
                 raiz = supabase.storage.from_(BUCKET_NOME).list("")
                 if raiz:
                     for item in raiz:
@@ -159,7 +158,7 @@ elif st.session_state.pagina_atual == "Upload":
         st.markdown("### Upload para Gestão")
         col_g1, col_g2 = st.columns(2)
         with col_g1:
-            up_est = st.file_uploader("Ficheiro de Stock (`estoque_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_est_file")
+            up_est = st.file_uploader("Planilha de Stock (`estoque_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_est_file")
             if up_est and supabase:
                 try:
                     supabase.storage.from_(BUCKET_NOME).upload(path="Gestao/estoque_fixo.xlsx", file=up_est.getvalue(), file_options={"upsert": "true"})
@@ -168,7 +167,7 @@ elif st.session_state.pagina_atual == "Upload":
                 except Exception as e:
                     st.error(f"Erro: {e}")
         with col_g2:
-            up_ven = st.file_uploader("Ficheiro de Vendas (`vendas_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_ven_file")
+            up_ven = st.file_uploader("Planilha de Vendas (`vendas_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_ven_file")
             if up_ven and supabase:
                 try:
                     supabase.storage.from_(BUCKET_NOME).upload(path="Gestao/vendas_fixo.xlsx", file=up_ven.getvalue(), file_options={"upsert": "true"})
@@ -176,6 +175,41 @@ elif st.session_state.pagina_atual == "Upload":
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro: {e}")
+
+        st.markdown("---")
+        st.subheader("📋 Ficheiros Atualmente na Pasta 'Gestão' (Supabase):")
+        if supabase:
+            try:
+                fich_gestao = []
+                raiz_g = supabase.storage.from_(BUCKET_NOME).list("")
+                if raiz_g:
+                    for item in raiz_g:
+                        nome_item = item.get("name", "")
+                        if "gestao" in nome_item.lower():
+                            conteudo_g = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+                            if conteudo_g:
+                                for arq in conteudo_g:
+                                    nome_arq = arq.get("name", "")
+                                    if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                        fich_gestao.append(nome_arq)
+                
+                if not fich_gestao:
+                    for p_g in ["Gestao", "Gestão"]:
+                        resp_g = supabase.storage.from_(BUCKET_NOME).list(p_g)
+                        if resp_g:
+                            for arq in resp_g:
+                                nome_arq = arq.get("name", "")
+                                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                    fich_gestao.append(nome_arq)
+                            break
+
+                if fich_gestao:
+                    for fg in fich_gestao:
+                        st.markdown(f"- 📄 **{fg}**")
+                else:
+                    st.info("Nenhum ficheiro encontrado na pasta Gestão.")
+            except Exception as e:
+                st.error(f"Erro ao listar ficheiros da pasta Gestão: {e}")
 
 # ==========================================
 # MÓDULO DE DASHBOARDS ESTOQUE
