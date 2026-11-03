@@ -91,7 +91,7 @@ with st.sidebar:
     if verificar_status_supabase():
         st.success("✅ Sincronizado com Supabase")
     else:
-        st.warning("⚠️ Nenhum arquivo no Supabase")
+        st.warning("⚠️ Nenhum ficheiro no Supabase")
 
 # ==========================================
 # AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
@@ -111,14 +111,14 @@ if st.session_state.perfil_atual == "Home":
     
     with col1:
         st.markdown("### 🛠️ Visão Administrativa")
-        st.markdown("Área restrita para visualização e upload de planilhas na pasta **Administração**.")
+        st.markdown("Área restrita para visualização e upload de ficheiros na pasta **Administração**.")
         if st.button("Aceder Administrativo ➔", key="btn_admin"):
             st.session_state.perfil_atual = "Admin"
             st.rerun()
             
     with col2:
         st.markdown("### 📦 Visão Gestores de Produto")
-        st.markdown("Área executiva para planilhas da pasta **Gestão** (Estoque / Vendas) e análises interativas.")
+        st.markdown("Área executiva para ficheiros da pasta **Gestao** (Estoque / Vendas) e análises interativas.")
         if st.button("Aceder Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
@@ -159,8 +159,6 @@ elif st.session_state.perfil_atual == "Admin":
     if supabase:
         try:
             arquivos_encontrados = []
-            
-            # Varredura inteligente na raiz para encontrar a pasta de forma dinâmica
             raiz = supabase.storage.from_(BUCKET_NOME).list("")
             if raiz:
                 for item in raiz:
@@ -173,7 +171,6 @@ elif st.session_state.perfil_atual == "Admin":
                                 if nome_arq and nome_arq != ".emptyFolderPlaceholder":
                                     arquivos_encontrados.append(nome_arq)
             
-            # Fallback direto
             if not arquivos_encontrados:
                 for pasta_teste in ["Administração", "Administracao"]:
                     resp = supabase.storage.from_(BUCKET_NOME).list(pasta_teste)
@@ -228,6 +225,7 @@ elif st.session_state.perfil_atual == "Gerente":
                             file_options={"upsert": "true"}
                         )
                         st.success("✅ Stock enviado e sincronizado na pasta Gestao!")
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Erro: {e}")
             with col_u2:
@@ -240,6 +238,7 @@ elif st.session_state.perfil_atual == "Gerente":
                             file_options={"upsert": "true"}
                         )
                         st.success("✅ Vendas enviadas e sincronizadas na pasta Gestao!")
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Erro: {e}")
 
