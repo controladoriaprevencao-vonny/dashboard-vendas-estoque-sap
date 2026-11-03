@@ -22,7 +22,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilização para garantir que as células e tabelas expandam e mostrem o conteúdo inteiro
 st.markdown(
     """
     <style>
@@ -35,11 +34,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Exibindo o logotipo no topo
-try:
-    st.image("icone.png", width=100)
-except Exception:
-    pass
+if st.button("← Voltar ao Menu Principal"):
+    st.switch_page("app.py")
 
 st.title("📋 Relatório Consolidado de Estoque")
 st.markdown("Área de análise e filtros inteligentes em cascata do estoque atual, ordenados pela coluna **Val.utiliz.libre**.")
@@ -49,12 +45,10 @@ def baixar_estoque():
     if not supabase:
         return None
     try:
-        # Ajustado para o caminho exato dentro da pasta 'Gestao/' do bucket
         file_res = supabase.storage.from_(BUCKET_NOME).download("Gestao/estoque_fixo.xlsx")
         if file_res:
             return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
     except Exception:
-        # Tenta buscar alternativa com letras minúsculas caso necessário
         try:
             file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/estoque_fixo.xlsx")
             if file_res:
@@ -65,7 +59,7 @@ def baixar_estoque():
 
 df_estoque = baixar_estoque()
 
-if df_estoque is not None:
+if df_estoque is not None and not df_estoque.empty:
     st.markdown("### 🔍 Filtros Interativos Inteligentes")
     
     f_col1, f_col2, f_col3, f_col4 = st.columns(4)
@@ -127,7 +121,7 @@ if df_estoque is not None:
         with f_col4:
             st.info("Coluna 'Depósito' não encontrada.")
 
-    # ORDENAÇÃO EXCLUSIVA: Coluna "Val.utiliz.libre" (Positivos primeiro, do maior para o menor)
+    # ORDENAÇÃO EXCLUSIVA: Coluna "Val.utiliz.libre"
     col_alvo = "Val.utiliz.libre"
     if col_alvo in df_filtrado_est.columns:
         df_filtrado_est[col_alvo] = pd.to_numeric(df_filtrado_est[col_alvo], errors="coerce").fillna(0)
@@ -138,7 +132,6 @@ if df_estoque is not None:
     st.markdown(f"**Total de linhas exibidas:** {len(df_filtrado_est)}")
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Configuração de colunas: Valores em Real (R$) com separador de milhar e quantidades formatadas
     config_colunas_est = {}
     for col in df_filtrado_est.columns:
         col_lower = col.lower()
@@ -153,4 +146,4 @@ if df_estoque is not None:
 
     st.dataframe(df_filtrado_est, use_container_width=True, column_config=config_colunas_est)
 else:
-    st.warning("⚠️ Nenhuma planilha de Estoque encontrada no Supabase. Faça o upload na aba de Gestão.")
+    st.warning("⚠️ Nenhuma planilha de Estoque encontrada no Supabase. Faça o upload na aba de Upload.")
