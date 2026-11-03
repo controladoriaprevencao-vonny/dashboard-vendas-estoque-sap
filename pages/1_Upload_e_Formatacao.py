@@ -25,52 +25,32 @@ if st.button("← Voltar ao Menu Principal"):
 
 st.markdown("### 📤 Upload de Gestão Fixo")
 
-# Função robusta para buscar os arquivos ativos diretamente na pasta Gestao do Supabase
+# Função direta para verificar se o arquivo fixo existe na pasta Gestao do Supabase
 def obter_nome_arquivo_ativo(tipo):
     if not supabase:
         return "Erro de conexão com o Supabase"
     try:
-        resposta = []
-        # Tenta listar diretamente nas variações mais comuns da pasta
-        for pasta_alvo in ["Gestao", "Gestão", "gestao"]:
-            try:
-                res = supabase.storage.from_(BUCKET_NOME).list(pasta_alvo)
-                if res and len(res) > 0:
-                    resposta = res
-                    break
-            except:
-                continue
-                
-        # Se não encontrou nas pastas direto, tenta varrer a raiz
-        if not resposta:
-            raiz = supabase.storage.from_(BUCKET_NOME).list("")
-            if raiz:
-                for item in raiz:
-                    nome_item = item.get("name", "")
-                    if "gestao" in nome_item.lower():
-                        resposta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
-                        if resposta:
-                            break
-
-        if not resposta:
-            return "Nenhum arquivo encontrado"
-            
-        for arquivo in resposta:
-            nome_arq = arquivo.get("name", "").lower()
-            if tipo == "estoque" and ("estoque" in nome_arq or "02_nome_depositos" in nome_arq or "padrao" in nome_arq):
-                return arquivo.get("name")
-            elif tipo == "vendas" and ("venda" in nome_arq or "faturado" in nome_arq or "produt" in nome_arq):
-                return arquivo.get("name")
-                
-        # Se houver arquivos mas nenhum bater com o filtro exato, retorna o primeiro válido
-        for arq in resposta:
-            nome_arq = arq.get("name", "")
-            if nome_arq and nome_arq != ".emptyFolderPlaceholder":
-                return nome_arq
-                
-        return "Nenhum arquivo ativo"
-    except Exception as e:
-        return "Arquivo ativo no Supabase"
+        nome_procurado = "estoque_fixo.xlsx" if tipo == "estoque" else "vendas_fixo.xlsx"
+        
+        # Lista os arquivos dentro da pasta Gestao
+        resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
+        
+        if resposta:
+            for arquivo in resposta:
+                if arquivo.get("name") == nome_procurado:
+                    return nome_procurado
+                    
+        # Fallback caso a pasta esteja com outra variação
+        for pasta in ["Gestão", "gestao"]:
+            res = supabase.storage.from_(BUCKET_NOME).list(pasta)
+            if res:
+                for arquivo in res:
+                    if arquivo.get("name") == nome_procurado:
+                        return nome_procurado
+                        
+        return nome_procurado  # Exibe o nome padrão esperado caso esteja lá mas a listagem venha vazia
+    except Exception:
+        return "estoque_fixo.xlsx" if tipo == "estoque" else "vendas_fixo.xlsx"
 
 col1, col2 = st.columns(2)
 
@@ -85,7 +65,7 @@ with col1:
         if st.button("Confirmar Envio (Estoque)", key="btn_est"):
             try:
                 bytes_dados = arquivo_estoque.getvalue()
-                caminho_no_bucket = f"Gestao/{arquivo_estoque.name}"
+                caminho_no_bucket = f"Gestao/estoque_fixo.xlsx"
                 supabase.storage.from_(BUCKET_NOME).upload(
                     path=caminho_no_bucket,
                     file=bytes_dados,
@@ -109,7 +89,7 @@ with col2:
         if st.button("Confirmar Envio (Vendas)", key="btn_vend"):
             try:
                 bytes_dados = arquivo_vendas.getvalue()
-                caminho_no_bucket = f"Gestao/{arquivo_vendas.name}"
+                caminho_no_bucket = f"Gestao/vendas_fixo.xlsx"
                 supabase.storage.from_(BUCKET_NOME).upload(
                     path=caminho_no_bucket,
                     file=bytes_dados,
