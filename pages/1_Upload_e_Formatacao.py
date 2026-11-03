@@ -1,20 +1,46 @@
 import streamlit as st
+from supabase import create_client, Client
+
+# Configurações de Conexão com o Supabase
+SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
+SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
+BUCKET_NOME = "dados-vonny"
+
+@st.cache_resource
+def init_supabase():
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
+
+supabase: Client = init_supabase()
 
 st.markdown("### Upload de Gestão Fixo")
 
-# Função de exemplo para buscar o nome do arquivo atual no Supabase
-# Substitua pela lógica real que você usa para consultar o Supabase
+# Função real para buscar os arquivos ativos no Supabase Storage
 def obter_nome_arquivo_ativo(tipo):
+    if not supabase:
+        return "Erro de conexão com o Supabase"
     try:
-        # Exemplo de consulta ao Supabase Storage ou tabela de metadados:
-        # arquivos = supabase.storage.from_("seu-bucket").list()
-        # return nome_do_arquivo_encontrado
+        # Lista os arquivos dentro da pasta 'Gestao/' no bucket do Supabase
+        resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
         
-        # EXEMPLO FICTÍCIO (Substitua pela sua chamada real ao Supabase):
-        if tipo == "estoque":
-            return "estoque_atualizado_2026.xlsx"
-        else:
-            return "vendas_geral_oficial.xlsx"
+        if not resposta:
+            return "Nenhum arquivo encontrado"
+            
+        # Procura arquivos correspondentes ao tipo solicitado
+        for arquivo in resposta:
+            nome_arq = arquivo.get("name", "").lower()
+            if tipo == "estoque" and ("estoque" in nome_arq or "02_nome_depositos" in nome_arq or "padrao" in nome_arq):
+                return arquivo.get("name")
+            elif tipo == "vendas" and ("venda" in nome_arq or "faturado" in nome_arq or "produt" in nome_arq):
+                return arquivo.get("name")
+                
+        # Se não achar um específico, retorna o primeiro arquivo disponível na pasta
+        if len(resposta) > 0:
+            return resposta[0].get("name")
+            
+        return "Nenhum arquivo ativo"
     except Exception as e:
         return "Arquivo ativo no Supabase"
 
@@ -29,6 +55,19 @@ with col1:
     
     if arquivo_estoque is not None:
         st.success(f"✅ **Novo arquivo pronto para envio:** {arquivo_estoque.name}")
+        if st.button("Confirmar Envio (Estoque)", key="btn_est"):
+            try:
+                bytes_dados = arquivo_estoque.getvalue()
+                caminho_no_bucket = f"Gestao/{arquivo_estoque.name}"
+                supabase.storage.from_(BUCKET_NOME).upload(
+                    path=caminho_no_bucket,
+                    file=bytes_dados,
+                    file_options={"upsert": "true"}
+                )
+                st.success("✅ Estoque enviado e sincronizado com sucesso!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao enviar: {e}")
     else:
         # Exibe exatamente o arquivo que está em uso pela aplicação
         st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_estoque}`")
@@ -42,6 +81,19 @@ with col2:
     
     if arquivo_vendas is not None:
         st.success(f"✅ **Novo arquivo pronto para envio:** {arquivo_vendas.name}")
+        if st.button("Confirmar Envio (Vendas)", key="btn_vend"):
+            try:
+                bytes_dados = arquivo_vendas.getvalue()
+                caminho_no_bucket = f"Gestao/{arquivo_vendas.name}"
+                supabase.storage.from_(BUCKET_NOME).upload(
+                    path=caminho_no_bucket,
+                    file=bytes_dados,
+                    file_options={"upsert": "true"}
+                )
+                st.success("✅ Vendas enviadas e sincronizadas com sucesso!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao enviar: {e}")
     else:
         # Exibe exatamente o arquivo que está em uso pela aplicação
         st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_vendas}`")
