@@ -1,10 +1,25 @@
+import io
+import pandas as pd
 import streamlit as st
+from supabase import create_client, Client
 
 # ==========================================
-# CONFIGURAÇÃO DE AMBIENTE (CHAVE AUTOMÁTICA)
-# Deixe True para Staging (Testes) e mude para False na Main (Produção)
+# CONFIGURAÇÃO DE AMBIENTE E SUPABASE
 # ==========================================
-AMBIENTE_STAGING = False
+AMBIENTE_STAGING = False  # Mude para True na branch de staging se desejar
+
+SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
+SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
+BUCKET_NOME = "dados-vonny"
+
+@st.cache_resource
+def init_supabase():
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
+
+supabase: Client = init_supabase()
 
 # Configuração da página web com o ícone personalizado
 st.set_page_config(
@@ -24,55 +39,33 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão para navegação e arquivos persistentes
+# Inicializa o estado da sessão para navegação
 if "perfil_atual" not in st.session_state:
     st.session_state.perfil_atual = "Home"
 
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
-if "arquivos_admin_fixos" not in st.session_state:
-    st.session_state.arquivos_admin_fixos = {}
-
-if "df_vendas_fixo" not in st.session_state:
-    st.session_state.df_vendas_fixo = None
-
-if "df_estoque_fixo" not in st.session_state:
-    st.session_state.df_estoque_fixo = None
-
-# ==========================================
-# FUNÇÕES COM CACHE PARA LEITURA RÁPIDA
-# ==========================================
-@st.cache_data
-def processar_vendas(uploaded_file):
-    if uploaded_file is None:
-        return None
-    df = pd.read_excel(uploaded_file, engine="openpyxl")
-    if "Quantidade faturada" in df.columns and "Preço interno" in df.columns:
-        df["Quantidade faturada"] = pd.to_numeric(df["Quantidade faturada"], errors="coerce").fillna(0)
-        df["Preço interno"] = pd.to_numeric(df["Preço interno"], errors="coerce").fillna(0)
-        df["Valor líquido"] = df["Quantidade faturada"] * df["Preço interno"]
-    return df
-
-@st.cache_data
-def processar_estoque(uploaded_file):
-    if uploaded_file is None:
-        return None
-    df = pd.read_excel(uploaded_file, engine="openpyxl")
-    return df
+# Função para verificar se existem arquivos no Supabase
+def verificar_status_supabase():
+    if not supabase:
+        return False
+    try:
+        resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
+        return len(resposta) > 0
+    except Exception:
+        return False
 
 # ==========================================
 # BARRA LATERAL (Navegação de Perfis)
 # ==========================================
 with st.sidebar:
-    # Exibe a logo oficial no topo da barra lateral usando o nome correto do GitHub
     try:
         st.image("logo_vonny.png", use_container_width=True)
     except:
         st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
-    # Aviso condicional na barra lateral se for Staging
     if AMBIENTE_STAGING:
         st.info("🛠️ **Staging (Testes)**")
         
@@ -95,10 +88,10 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 📊 Status dos Dados")
-    if st.session_state.df_vendas_fixo is not None or st.session_state.df_estoque_fixo is not None or len(st.session_state.arquivos_admin_fixos) > 0:
-        st.success("✅ Dados carregados na sessão")
+    if verificar_status_supabase():
+        st.success("✅ Sincronizado com Supabase")
     else:
-        st.warning("⚠️ Nenhum arquivo carregado")
+        st.warning("⚠️ Nenhum arquivo no Supabase")
 
 # ==========================================
 # AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
@@ -111,7 +104,7 @@ if AMBIENTE_STAGING:
 # ==========================================
 if st.session_state.perfil_atual == "Home":
     st.title("📊 Dashboard Executivo - Vonný")
-    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP. Escolha abaixo qual visão deseja acessar:")
+    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase.")
     
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
@@ -136,7 +129,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste quantos arquivos precisar de uma só vez (formatos `.xlsx` e `.xlsm`). Eles ficarão salvos e fixos na sessão.")
+    st.markdown("Selecione ou arraste os arquivos para enviá-los diretamente ao bucket do Supabase (`dados-vonny`).")
 
     uploaded_files = st.file_uploader(
         "Upload de Arquivos Administrativos",
@@ -146,30 +139,32 @@ elif st.session_state.perfil_atual == "Admin":
         label_visibility="collapsed"
     )
 
-    if uploaded_files:
+    if uploaded_files and supabase:
         for file in uploaded_files:
-            st.session_state.arquivos_admin_fixos[file.name] = {
-                "objeto": file,
-                "df": processar_vendas(file)
-            }
-        st.success(f"🎉 {len(uploaded_files)} arquivo(s) processado(s) e fixado(s) com sucesso!")
+            try:
+                bytes_dados = file.getvalue()
+                caminho_no_bucket = f"Gestao/{file.name}"
+                supabase.storage.from_(BUCKET_NOME).upload(
+                    path=caminho_no_bucket,
+                    file=bytes_dados,
+                    file_options={"upsert": "true"}
+                )
+                st.success(f"🎉 Arquivo **{file.name}** enviado e sincronizado no Supabase com sucesso!")
+            except Exception as e:
+                st.error(f"Erro ao enviar {file.name}: {e}")
 
     st.markdown("---")
-    st.subheader("📋 Arquivos Atualmente Fixados na Sessão:")
-    if len(st.session_state.arquivos_admin_fixos) > 0:
-        for nome_arquivo, dados in st.session_state.arquivos_admin_fixos.items():
-            qtd_linhas = len(dados["df"]) if dados["df"] is not None else 0
-            st.markdown(f"- 📄 **{nome_arquivo}** _({qtd_linhas} linhas carregadas)_")
-    else:
-        st.info("Nenhum arquivo enviado até o momento.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 Limpar Todos os Arquivos Fixos", key="btn_limpar_admin"):
-        st.session_state.arquivos_admin_fixos = {}
-        st.session_state.df_vendas_fixo = None
-        st.session_state.df_estoque_fixo = None
-        st.cache_data.clear()
-        st.rerun()
+    st.subheader("📋 Arquivos Atualmente no Supabase (Pasta Gestao):")
+    if supabase:
+        try:
+            resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
+            if resposta:
+                for arq in resposta:
+                    st.markdown(f"- 📄 **{arq.get('name')}**")
+            else:
+                st.info("Nenhum arquivo encontrado no bucket.")
+        except Exception:
+            st.info("Não foi possível listar os arquivos do Supabase.")
 
 # ==========================================
 # 3. VISÃO DOS GERENTES DE PRODUTO
@@ -191,26 +186,38 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo (Estoque à esquerda e Vendas à direita) ou selecione o módulo para análise:")
+        st.markdown("Faça o upload direto dos arquivos abaixo para atualizar o Supabase ou acesse os módulos de relatórios:")
 
-        # Seção de Upload para o Gerente invertida: Estoque primeiro, Vendas depois
-        with st.expander("📂 Fazer Upload das Planilhas (Estoque e Vendas)", expanded=True):
+        with st.expander("📂 Fazer Upload Direto para o Supabase (Estoque e Vendas)", expanded=True):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
                 file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
-                if file_e is not None:
-                    st.session_state.df_estoque_fixo = processar_estoque(file_e)
-                    st.success("✅ Estoque carregado com sucesso!")
+                if file_e is not None and supabase:
+                    try:
+                        supabase.storage.from_(BUCKET_NOME).upload(
+                            path="Gestao/estoque_fixo.xlsx",
+                            file=file_e.getvalue(),
+                            file_options={"upsert": "true"}
+                        )
+                        st.success("✅ Estoque enviado e sincronizado no Supabase!")
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
             with col_u2:
                 file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
-                if file_v is not None:
-                    st.session_state.df_vendas_fixo = processar_vendas(file_v)
-                    st.success("✅ Vendas carregadas com sucesso!")
+                if file_v is not None and supabase:
+                    try:
+                        supabase.storage.from_(BUCKET_NOME).upload(
+                            path="Gestao/vendas_fixo.xlsx",
+                            file=file_v.getvalue(),
+                            file_options={"upsert": "true"}
+                        )
+                        st.success("✅ Vendas enviadas e sincronizadas no Supabase!")
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
 
         st.markdown("<br>", unsafe_allow_html=True)
         col_g1, col_g2 = st.columns(2)
 
-        # Invertido também nos botões da Home da Gestão: Estoque à esquerda, Vendas à direita
         with col_g1:
             st.markdown("### 📋 Módulo de Estoques")
             if st.button("Entrar em Estoques ➔", key="g_estoque"):
@@ -225,14 +232,8 @@ elif st.session_state.perfil_atual == "Gerente":
 
     elif st.session_state.pagina_atual == "Estoques":
         st.title("📋 Relatório Consolidado de Estoque")
-        if st.session_state.df_estoque_fixo is not None:
-            st.dataframe(st.session_state.df_estoque_fixo, use_container_width=True)
-        else:
-            st.warning("⚠️ Nenhuma planilha de Estoque carregada. Utilize a seção de upload na página inicial da Gestão.")
+        st.info("💡 Dica: Acesse a página dedicada de Estoque pelo menu lateral do Streamlit para visualizar os filtros avançados em cascata e ordenação por saldo.")
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
-        if st.session_state.df_vendas_fixo is not None:
-            st.dataframe(st.session_state.df_vendas_fixo, use_container_width=True)
-        else:
-            st.warning("⚠️ Nenhuma planilha de Vendas carregada. Utilize a seção de upload na página inicial da Gestão.")
+        st.info("💡 Dica: Acesse a página dedicada de Vendas pelo menu lateral do Streamlit para visualizar os filtros globais e a análise inteligente de devolução.")
