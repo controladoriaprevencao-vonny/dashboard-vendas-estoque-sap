@@ -1,4 +1,3 @@
-import pandas as pd
 import streamlit as st
 
 # ==========================================
@@ -14,50 +13,12 @@ st.set_page_config(
     layout="wide",
 )
 
-# Estilo visual limpo, com a faixa pink no topo, fundo cinza encorpado e botões em cinza com texto branco e negrito
 st.markdown(
     """
     <style>
-    /* Faixa pink oficial no topo absoluto da página */
-    header[data-testid="stHeader"] {
-        background-color: #E6007E !important;
-    }
-    
-    /* Fundo do painel principal (Lado direito) em cinza mais escuro */
-    .main {
-        background-color: #EAEAEA !important;
-        color: #2C2C2C;
-    }
-    
-    /* Barra lateral em tom rosa claro da marca */
-    section[data-testid="stSidebar"] {
-        background-color: #FFE6EE !important;
-        border-right: 1px solid #F5CCD8;
-    }
-    
-    /* Títulos e cabeçalhos em rosa escuro/magenta */
-    h1, h2, h3 {
-        color: #C5006B !important;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        font-weight: 700;
-    }
-    
-    /* Botões estilizados em cinza elegante */
-    .stButton>button {
-        width: 100%;
-        background-color: #555555 !important;
-        color: #FFFFFF !important;
-        font-weight: bold !important;
-        border-radius: 6px;
-        height: 48px;
-        border: none;
-        transition: 0.3s;
-    }
-    
-    .stButton>button:hover {
-        background-color: #333333 !important;
-        color: #FFFFFF !important;
-    }
+    header[data-testid="stHeader"] { background-color: #E6007E !important; }
+    section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
+    h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
     </style>
 """,
     unsafe_allow_html=True,
