@@ -49,11 +49,18 @@ def baixar_estoque():
     if not supabase:
         return None
     try:
-        file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/estoque_fixo.xlsx")
+        # Ajustado para o caminho exato dentro da pasta 'Gestao/' do bucket
+        file_res = supabase.storage.from_(BUCKET_NOME).download("Gestao/estoque_fixo.xlsx")
         if file_res:
             return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
     except Exception:
-        return None
+        # Tenta buscar alternativa com letras minúsculas caso necessário
+        try:
+            file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/estoque_fixo.xlsx")
+            if file_res:
+                return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
+        except Exception:
+            return None
     return None
 
 df_estoque = baixar_estoque()
