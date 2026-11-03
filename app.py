@@ -46,14 +46,14 @@ if "perfil_atual" not in st.session_state:
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
-# Função para verificar se existem arquivos no Supabase
+# Função para verificar o status geral das pastas no Supabase
 def verificar_status_supabase():
     if not supabase:
         return False
     try:
-        resposta_gestao = supabase.storage.from_(BUCKET_NOME).list("Gestao")
-        resposta_admin = supabase.storage.from_(BUCKET_NOME).list("Administracao")
-        return (resposta_gestao is not None and len(resposta_gestao) > 0) or (resposta_admin is not None and len(resposta_admin) > 0)
+        resp_gestao = supabase.storage.from_(BUCKET_NOME).list("Gestao")
+        resp_admin = supabase.storage.from_(BUCKET_NOME).list("Administracao")
+        return (resp_gestao is not None and len(resp_gestao) > 0) or (resp_admin is not None and len(resp_admin) > 0)
     except Exception:
         return False
 
@@ -112,14 +112,14 @@ if st.session_state.perfil_atual == "Home":
     
     with col1:
         st.markdown("### 🛠️ Visão Administrativa")
-        st.markdown("Área restrita para upload múltiplo e gerenciamento de planilhas na pasta **Administração**.")
+        st.markdown("Área restrita para visualização e upload de planilhas na pasta **Administração**.")
         if st.button("Acessar Administrativo ➔", key="btn_admin"):
             st.session_state.perfil_atual = "Admin"
             st.rerun()
             
     with col2:
         st.markdown("### 📦 Visão Gerentes de Produto")
-        st.markdown("Área executiva para upload individual de planilhas (Estoque / Vendas) e análise interativa.")
+        st.markdown("Área executiva para planilhas da pasta **Gestão** (Estoque / Vendas) e análises interativas.")
         if st.button("Acessar Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
@@ -130,17 +130,18 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Arquivos de Parâmetros")
-    st.markdown("Estes são os arquivos cadastrais e de parametrização armazenados na pasta **Administração** do Supabase.")
+    st.markdown("Estes são os arquivos cadastrais e de parametrização armazenados na pasta **Administração** do Supabase[cite: 10].")
 
-    uploaded_files = st.file_uploader(
-        "Enviar arquivos para Administração",
+    # Upload opcional para adicionar novos arquivos na pasta Administração
+    uploaded_files_admin = st.file_uploader(
+        "Enviar novos arquivos para Administração",
         type=["xlsx", "xlsm", "xlsb"],
         accept_multiple_files=True,
         key="multi_upload_admin"
     )
 
-    if uploaded_files and supabase:
-        for file in uploaded_files:
+    if uploaded_files_admin and supabase:
+        for file in uploaded_files_admin:
             try:
                 bytes_dados = file.getvalue()
                 caminho_no_bucket = f"Administracao/{file.name}"
@@ -159,31 +160,23 @@ elif st.session_state.perfil_atual == "Admin":
     
     if supabase:
         try:
-            # Tenta listar usando o nome exato da pasta
-            resposta = supabase.storage.from_(BUCKET_NOME).list("Administracao")
+            # Lista especificamente os arquivos da pasta Administração
+            resposta_admin = supabase.storage.from_(BUCKET_NOME).list("Administracao")
             
-            # Se vier vazio, tenta uma busca alternativa ou varredura geral no bucket
-            if not resposta:
-                resposta = supabase.storage.from_(BUCKET_NOME).list("")
-                
-            arquivos_encontrados = []
-            if resposta:
-                for arq in resposta:
-                    nome = arq.get('name', '')
-                    # Se o item retornado for um arquivo direto ou estiver dentro da pasta
-                    if nome and nome != ".emptyFolderPlaceholder":
-                        arquivos_encontrados.append(nome)
-            
-            if arquivos_encontrados:
-                for arq_nome in arquivos_encontrados:
-                    st.markdown(f"- 📄 **{arq_nome}**")
+            if resposta_admin:
+                for arq in resposta_admin:
+                    nome_arquivo = arq.get('name')
+                    if nome_arquivo and nome_arquivo != ".emptyFolderPlaceholder":
+                        st.markdown(f"- 📄 **{nome_arquivo}**")
             else:
                 st.info("Nenhum arquivo encontrado na pasta Administração.")
         except Exception as e:
-            st.info(f"Não foi possível listar os arquivos do Supabase: {e}")
+            st.error(f"Erro ao conectar com o Supabase para listar os arquivos: {e}")
+    else:
+        st.error("Erro de conexão com o cliente Supabase.")
 
 # ==========================================
-# 3. VISÃO DOS GERENTES DE PRODUTO
+# 3. VISÃO DOS GERENTES DE PRODUTO (PASTA GESTAO)
 # ==========================================
 elif st.session_state.perfil_atual == "Gerente":
     
@@ -202,12 +195,12 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo para atualizar a pasta **Gestao** no Supabase ou acesse os módulos:")
+        st.markdown("Faça o upload direto dos arquivos da pasta **Gestão** (`estoque_fixo.xlsx` e `vendas_fixo.xlsx`)[cite: 11] ou acesse os módulos abaixo:")
 
-        with st.expander("📂 Fazer Upload Direto para o Supabase (Estoque e Vendas)", expanded=True):
+        with st.expander("📂 Fazer Upload Direto para a Pasta Gestão (Supabase)", expanded=True):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
-                file_e = st.file_uploader("Planilha de Estoque (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
+                file_e = st.file_uploader("Planilha de Estoque (`estoque_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None and supabase:
                     try:
                         supabase.storage.from_(BUCKET_NOME).upload(
@@ -215,11 +208,11 @@ elif st.session_state.perfil_atual == "Gerente":
                             file=file_e.getvalue(),
                             file_options={"upsert": "true"}
                         )
-                        st.success("✅ Estoque enviado e sincronizado no Supabase!")
+                        st.success("✅ Estoque enviado e sincronizado na pasta Gestao!")
                     except Exception as e:
                         st.error(f"Erro: {e}")
             with col_u2:
-                file_v = st.file_uploader("Planilha de Vendas (.xlsx / .xlsm)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
+                file_v = st.file_uploader("Planilha de Vendas (`vendas_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
                 if file_v is not None and supabase:
                     try:
                         supabase.storage.from_(BUCKET_NOME).upload(
@@ -227,7 +220,7 @@ elif st.session_state.perfil_atual == "Gerente":
                             file=file_v.getvalue(),
                             file_options={"upsert": "true"}
                         )
-                        st.success("✅ Vendas enviadas e sincronizadas no Supabase!")
+                        st.success("✅ Vendas enviadas e sincronizadas na pasta Gestao!")
                     except Exception as e:
                         st.error(f"Erro: {e}")
 
