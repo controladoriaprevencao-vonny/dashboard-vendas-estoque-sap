@@ -1,25 +1,9 @@
-import io
-import pandas as pd
 import streamlit as st
-from supabase import create_client, Client
 
 # ==========================================
-# CONFIGURAÇÃO DE AMBIENTE E SUPABASE
+# CONFIGURAÇÃO DE AMBIENTE
 # ==========================================
 AMBIENTE_STAGING = False  # Mude para True na branch de staging se desejar
-
-SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
-SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
-BUCKET_NOME = "dados-vonny"
-
-@st.cache_resource
-def init_supabase():
-    try:
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except Exception:
-        return None
-
-supabase: Client = init_supabase()
 
 # Configuração da página web com o ícone personalizado
 st.set_page_config(
@@ -39,10 +23,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Inicializa o estado da sessão para navegação interna
-if "pagina_atual" not in st.session_state:
-    st.session_state.pagina_atual = "Home"
-
 # ==========================================
 # BARRA LATERAL (Apenas Logotipo)
 # ==========================================
@@ -60,175 +40,32 @@ with st.sidebar:
 # AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
 # ==========================================
 if AMBIENTE_STAGING:
-    st.warning("⚠️ **ATENÇÃO: Você está a aceder à versão de testes (Staging).**")
+    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).**")
 
 # ==========================================
 # PÁGINA PRINCIPAL / HOME
 # ==========================================
-if st.session_state.pagina_atual == "Home":
-    st.title("📊 Dashboard Executivo - Vonný")
-    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase. Escolha abaixo a secção que deseja aceder:")
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("### 📤 Upload")
-        st.markdown("Gerenciamento e envio de ficheiros para o Supabase.")
-        if st.button("Aceder Upload ➔", key="btn_upload", use_container_width=True):
-            st.session_state.pagina_atual = "Upload"
-            st.rerun()
-            
-    with col2:
-        st.markdown("### 📋 Dashboards Estoque")
-        st.markdown("Análise inteligente e filtros em cascata do stock atual.")
-        if st.button("Aceder Estoque ➔", key="btn_estoque", use_container_width=True):
-            st.session_state.pagina_atual = "Estoque"
-            st.rerun()
+st.title("📊 Dashboard Executivo - Vonný")
+st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase. Escolha abaixo a seção que deseja acessar:")
 
-    with col3:
-        st.markdown("### 📈 Dashboards Vendas")
-        st.markdown("Relatórios executivos e análise de desempenho de vendas.")
-        if st.button("Aceder Vendas ➔", key="btn_vendas", use_container_width=True):
-            st.session_state.pagina_atual = "Vendas"
-            st.rerun()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# ==========================================
-# MÓDULO DE UPLOAD
-# ==========================================
-elif st.session_state.pagina_atual == "Upload":
-    if st.button("← Voltar ao Menu Principal"):
-        st.session_state.pagina_atual = "Home"
-        st.rerun()
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("### 📤 Upload")
+    st.markdown("Gerenciamento e envio de arquivos para o Supabase.")
+    if st.button("Acessar Upload ➔", key="btn_upload", use_container_width=True):
+        st.switch_page("pages/1_Upload_e_Formatacao.py")
         
-    st.title("📤 Painel de Upload de Ficheiros")
-    st.markdown("Faça o envio dos ficheiros diretamente para as pastas correspondentes no Supabase.")
+with col2:
+    st.markdown("### 📋 Dashboards Estoque")
+    st.markdown("Análise inteligente e filtros em cascata do estoque atual.")
+    if st.button("Acessar Estoque ➔", key="btn_estoque", use_container_width=True):
+        st.switch_page("pages/2_Relatorio_Estoque.py")
 
-    tab1, tab2 = st.tabs(["📁 Pasta Administração", "📁 Pasta Gestão"])
-
-    with tab1:
-        st.markdown("### Upload para Administração")
-        up_admin = st.file_uploader("Enviar novos ficheiros de parâmetros", type=["xlsx", "xlsm", "xlsb"], accept_multiple_files=True, key="up_adm")
-        if up_admin and supabase:
-            for f in up_admin:
-                try:
-                    supabase.storage.from_(BUCKET_NOME).upload(path=f"Administração/{f.name}", file=f.getvalue(), file_options={"upsert": "true"})
-                    st.success(f"Ficheiro **{f.name}** enviado com sucesso!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro ao enviar {f.name}: {e}")
-
-        st.markdown("---")
-        st.subheader("📋 Ficheiros Atualmente na Pasta 'Administração' (Supabase):")
-        if supabase:
-            try:
-                arquivos_encontrados = []
-                raiz = supabase.storage.from_(BUCKET_NOME).list("")
-                if raiz:
-                    for item in raiz:
-                        nome_item = item.get("name", "")
-                        if "admin" in nome_item.lower():
-                            conteudo_pasta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
-                            if conteudo_pasta:
-                                for arq in conteudo_pasta:
-                                    nome_arq = arq.get("name", "")
-                                    if nome_arq and nome_arq != ".emptyFolderPlaceholder":
-                                        arquivos_encontrados.append(nome_arq)
-                
-                if not arquivos_encontrados:
-                    for pasta_teste in ["Administração", "Administracao"]:
-                        resp = supabase.storage.from_(BUCKET_NOME).list(pasta_teste)
-                        if resp:
-                            for arq in resp:
-                                nome_arq = arq.get("name", "")
-                                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
-                                    arquivos_encontrados.append(nome_arq)
-                            break
-
-                if arquivos_encontrados:
-                    for arq_nome in arquivos_encontrados:
-                        st.markdown(f"- 📄 **{arq_nome}**")
-                else:
-                    st.info("Nenhum ficheiro encontrado na pasta Administração.")
-            except Exception as e:
-                st.error(f"Erro ao listar ficheiros: {e}")
-
-    with tab2:
-        st.markdown("### Upload para Gestão")
-        col_g1, col_g2 = st.columns(2)
-        with col_g1:
-            up_est = st.file_uploader("Planilha de Stock (`estoque_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_est_file")
-            if up_est and supabase:
-                try:
-                    supabase.storage.from_(BUCKET_NOME).upload(path="Gestao/estoque_fixo.xlsx", file=up_est.getvalue(), file_options={"upsert": "true"})
-                    st.success("Stock atualizado com sucesso!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro: {e}")
-        with col_g2:
-            up_ven = st.file_uploader("Planilha de Vendas (`vendas_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_ven_file")
-            if up_ven and supabase:
-                try:
-                    supabase.storage.from_(BUCKET_NOME).upload(path="Gestao/vendas_fixo.xlsx", file=up_ven.getvalue(), file_options={"upsert": "true"})
-                    st.success("Vendas atualizadas com sucesso!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro: {e}")
-
-        st.markdown("---")
-        st.subheader("📋 Ficheiros Atualmente na Pasta 'Gestão' (Supabase):")
-        if supabase:
-            try:
-                fich_gestao = []
-                raiz_g = supabase.storage.from_(BUCKET_NOME).list("")
-                if raiz_g:
-                    for item in raiz_g:
-                        nome_item = item.get("name", "")
-                        if "gestao" in nome_item.lower():
-                            conteudo_g = supabase.storage.from_(BUCKET_NOME).list(nome_item)
-                            if conteudo_g:
-                                for arq in conteudo_g:
-                                    nome_arq = arq.get("name", "")
-                                    if nome_arq and nome_arq != ".emptyFolderPlaceholder":
-                                        fich_gestao.append(nome_arq)
-                
-                if not fich_gestao:
-                    for p_g in ["Gestao", "Gestão"]:
-                        resp_g = supabase.storage.from_(BUCKET_NOME).list(p_g)
-                        if resp_g:
-                            for arq in resp_g:
-                                nome_arq = arq.get("name", "")
-                                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
-                                    fich_gestao.append(nome_arq)
-                            break
-
-                if fich_gestao:
-                    for fg in fich_gestao:
-                        st.markdown(f"- 📄 **{fg}**")
-                else:
-                    st.info("Nenhum ficheiro encontrado na pasta Gestão.")
-            except Exception as e:
-                st.error(f"Erro ao listar ficheiros da pasta Gestão: {e}")
-
-# ==========================================
-# MÓDULO DE DASHBOARDS ESTOQUE
-# ==========================================
-elif st.session_state.pagina_atual == "Estoque":
-    if st.button("← Voltar ao Menu Principal"):
-        st.session_state.pagina_atual = "Home"
-        st.rerun()
-        
-    st.title("📋 Dashboards Estoque")
-    st.info("Módulo de visualização e filtros de stock integrado ao Supabase.")
-
-# ==========================================
-# MÓDULO DE DASHBOARDS VENDAS
-# ==========================================
-elif st.session_state.pagina_atual == "Vendas":
-    if st.button("← Voltar ao Menu Principal"):
-        st.session_state.pagina_atual = "Home"
-        st.rerun()
-        
-    st.title("📈 Dashboards Vendas")
-    st.info("Módulo de visualização e análise de vendas integrado ao Supabase.")
+with col3:
+    st.markdown("### 📈 Dashboards Vendas")
+    st.markdown("Relatórios executivos e análise de desempenho de vendas.")
+    if st.button("Acessar Vendas ➔", key="btn_vendas", use_container_width=True):
+        st.switch_page("pages/3_Relatorio_Vendas.py")
