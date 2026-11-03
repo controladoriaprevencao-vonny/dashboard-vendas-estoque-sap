@@ -1,47 +1,42 @@
+import io
 import streamlit as st
+from supabase import create_client, Client
 
-st.markdown("### Upload de Gestão Fixo")
+SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
+SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
+BUCKET_NOME = "dados-vonny"
 
-# Função de exemplo para buscar o nome do arquivo atual no Supabase
-# Substitua pela lógica real que você usa para consultar o Supabase
-def obter_nome_arquivo_ativo(tipo):
+@st.cache_resource
+def init_supabase():
     try:
-        # Exemplo de consulta ao Supabase Storage ou tabela de metadados:
-        # arquivos = supabase.storage.from_("seu-bucket").list()
-        # return nome_do_arquivo_encontrado
-        
-        # EXEMPLO FICTÍCIO (Substitua pela sua chamada real ao Supabase):
-        if tipo == "estoque":
-            return "estoque_atualizado_2026.xlsx"
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception:
+        return None
+
+supabase: Client = init_supabase()
+
+st.title("📤 Central de Upload e Formatação")
+st.markdown("Faça o upload dos arquivos oficiais. Eles serão salvos no Supabase e sincronizados com todas as páginas e ambientes (`main` e `staging`).")
+
+# Exemplo de upload para o arquivo de vendas
+arquivo_upload = st.file_uploader("Enviar Planilha de Vendas (vendas_fixo.xlsx)", type=["xlsx", "xlsm"])
+
+if arquivo_upload is not None:
+    if st.button("Enviar para o Supabase"):
+        if not supabase:
+            st.error("Erro ao conectar com o Supabase.")
         else:
-            return "vendas_geral_oficial.xlsx"
-    except Exception as e:
-        return "Arquivo ativo no Supabase"
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("#### Planilha de Estoque")
-    arquivo_estoque = st.file_uploader("Envie a planilha de estoque", type=["xlsx", "xlsm"], key="up_estoque")
-    
-    # Busca o nome do arquivo que o site está usando atualmente no Supabase
-    nome_ativo_estoque = obter_nome_arquivo_ativo("estoque")
-    
-    if arquivo_estoque is not None:
-        st.success(f"✅ **Novo arquivo pronto para envio:** {arquivo_estoque.name}")
-    else:
-        # Exibe exatamente o arquivo que está em uso pela aplicação
-        st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_estoque}`")
-
-with col2:
-    st.markdown("#### Planilha de Vendas")
-    arquivo_vendas = st.file_uploader("Envie a planilha de vendas", type=["xlsx", "xlsm"], key="up_vendas")
-    
-    # Busca o nome do arquivo de vendas ativo no Supabase
-    nome_ativo_vendas = obter_nome_arquivo_ativo("vendas")
-    
-    if arquivo_vendas is not None:
-        st.success(f"✅ **Novo arquivo pronto para envio:** {arquivo_vendas.name}")
-    else:
-        # Exibe exatamente o arquivo que está em uso pela aplicação
-        st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_vendas}`")
+            try:
+                # O arquivo é lido em bytes e enviado para a pasta 'Gestao/' no bucket
+                bytes_dados = arquivo_upload.getvalue()
+                caminho_no_bucket = "Gestao/vendas_fixo.xlsx"
+                
+                # Realiza o upload (fazendo upsert para substituir se já existir)
+                supabase.storage.from_(BUCKET_NOME).upload(
+                    path=caminho_no_bucket,
+                    file=bytes_dados,
+                    file_options={"upsert": "true"}
+                )
+                st.success("✅ Arquivo enviado e sincronizado com sucesso no Supabase!")
+            except Exception as e:
+                st.error(f"Erro ao enviar o arquivo: {e}")
