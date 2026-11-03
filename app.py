@@ -52,9 +52,10 @@ def verificar_status_supabase():
         return False
     try:
         resp_gestao = supabase.storage.from_(BUCKET_NOME).list("Gestao")
-        resp_admin = supabase.storage.from_(BUCKET_NOME).list("Administração")
-        if not resp_admin:
-            resp_admin = supabase.storage.from_(BUCKET_NOME).list("Administracao")
+        resp_admin = (
+            supabase.storage.from_(BUCKET_NOME).list("Administração") or 
+            supabase.storage.from_(BUCKET_NOME).list("Administracao")
+        )
         return (resp_gestao is not None and len(resp_gestao) > 0) or (resp_admin is not None and len(resp_admin) > 0)
     except Exception:
         return False
@@ -122,7 +123,7 @@ if st.session_state.perfil_atual == "Home":
     with col2:
         st.markdown("### 📦 Visão Gerentes de Produto")
         st.markdown("Área executiva para planilhas da pasta **Gestão** (Estoque / Vendas) e análises interativas.")
-        if st.button("Acessار Gestão ➔", key="btn_gerente"):
+        if st.button("Acessar Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
             st.rerun()
@@ -132,7 +133,7 @@ if st.session_state.perfil_atual == "Home":
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
     st.title("🛠️ Painel Administrativo - Arquivos de Parâmetros")
-    st.markdown("Estes são os arquivos cadastrais e de parametrização armazenados na pasta **Administração** do Supabase[cite: 10].")
+    st.markdown("Estes são os arquivos cadastrais e de parametrização armazenados na pasta **Administração** do Supabase.")
 
     uploaded_files_admin = st.file_uploader(
         "Enviar novos arquivos para Administração",
@@ -161,18 +162,40 @@ elif st.session_state.perfil_atual == "Admin":
     
     if supabase:
         try:
-            # Tenta listar usando as variações possíveis do nome da pasta no Supabase
-            resposta_admin = supabase.storage.from_(BUCKET_NOME).list("Administração")
-            if not resposta_admin:
-                resposta_admin = supabase.storage.from_(BUCKET_NOME).list("Administracao")
-            
             arquivos_encontrados = []
-            if resposta_admin:
-                for arq in resposta_admin:
+            
+            # Tenta listar com acento
+            resp1 = supabase.storage.from_(BUCKET_NOME).list("Administração")
+            if resp1:
+                for arq in resp1:
                     nome = arq.get('name', '')
                     if nome and nome != ".emptyFolderPlaceholder":
                         arquivos_encontrados.append(nome)
             
+            # Se não achar, tenta sem acento
+            if not arquivos_encontrados:
+                resp2 = supabase.storage.from_(BUCKET_NOME).list("Administracao")
+                if resp2:
+                    for arq in resp2:
+                        nome = arq.get('name', '')
+                        if nome and nome != ".emptyFolderPlaceholder":
+                            arquivos_encontrados.append(nome)
+            
+            # Se ainda assim estiver vazio, faz uma varredura geral listando a raiz
+            if not arquivos_encontrados:
+                resp_geral = supabase.storage.from_(BUCKET_NOME).list("")
+                if resp_geral:
+                    for item in resp_geral:
+                        # Se encontrou a pasta Administração na raiz, lista o conteúdo dela
+                        if item.get('name') in ["Administração", "Administracao"]:
+                            pasta_nome = item.get('name')
+                            resp_pasta = supabase.storage.from_(BUCKET_NOME).list(pasta_nome)
+                            if resp_pasta:
+                                for arq in resp_pasta:
+                                    nome = arq.get('name', '')
+                                    if nome and nome != ".emptyFolderPlaceholder":
+                                        arquivos_encontrados.append(nome)
+
             if arquivos_encontrados:
                 for arq_nome in arquivos_encontrados:
                     st.markdown(f"- 📄 **{arq_nome}**")
