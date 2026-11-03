@@ -53,7 +53,7 @@ def verificar_status_supabase():
     try:
         resposta_gestao = supabase.storage.from_(BUCKET_NOME).list("Gestao")
         resposta_admin = supabase.storage.from_(BUCKET_NOME).list("Administracao")
-        return len(resposta_gestao) > 0 or len(resposta_admin) > 0
+        return (resposta_gestao is not None and len(resposta_gestao) > 0) or (resposta_admin is not None and len(resposta_admin) > 0)
     except Exception:
         return False
 
@@ -150,6 +150,7 @@ elif st.session_state.perfil_atual == "Admin":
                     file_options={"upsert": "true"}
                 )
                 st.success(f"🎉 Arquivo **{file.name}** enviado para a pasta Administração com sucesso!")
+                st.rerun()
             except Exception as e:
                 st.error(f"Erro ao enviar {file.name}: {e}")
 
@@ -158,12 +159,24 @@ elif st.session_state.perfil_atual == "Admin":
     
     if supabase:
         try:
+            # Tenta listar usando o nome exato da pasta
             resposta = supabase.storage.from_(BUCKET_NOME).list("Administracao")
+            
+            # Se vier vazio, tenta uma busca alternativa ou varredura geral no bucket
+            if not resposta:
+                resposta = supabase.storage.from_(BUCKET_NOME).list("")
+                
+            arquivos_encontrados = []
             if resposta:
                 for arq in resposta:
-                    nome_arquivo = arq.get('name')
-                    if nome_arquivo and nome_arquivo != ".emptyFolderPlaceholder":
-                        st.markdown(f"- 📄 **{nome_arquivo}**")
+                    nome = arq.get('name', '')
+                    # Se o item retornado for um arquivo direto ou estiver dentro da pasta
+                    if nome and nome != ".emptyFolderPlaceholder":
+                        arquivos_encontrados.append(nome)
+            
+            if arquivos_encontrados:
+                for arq_nome in arquivos_encontrados:
+                    st.markdown(f"- 📄 **{arq_nome}**")
             else:
                 st.info("Nenhum arquivo encontrado na pasta Administração.")
         except Exception as e:
