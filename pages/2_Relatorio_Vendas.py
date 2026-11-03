@@ -3,6 +3,11 @@ import pandas as pd
 import streamlit as st
 from supabase import create_client, Client
 
+# ==========================================
+# CONFIGURAÇÃO DE AMBIENTE E SUPABASE
+# ==========================================
+AMBIENTE_STAGING = False  # Mude para True na branch de staging se desejar
+
 SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
 SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
 BUCKET_NOME = "dados-vonny"
@@ -16,214 +21,283 @@ def init_supabase():
 
 supabase: Client = init_supabase()
 
+# Configuração da página web com o ícone personalizado
 st.set_page_config(
-    page_title="Relatório de Vendas - Vonný",
+    page_title="Dashboard Executivo - Vonný" + (" [STAGING]" if AMBIENTE_STAGING else ""),
     page_icon="icone.png",
     layout="wide",
 )
 
-# Estilização para garantir que as células e tabelas expandam e mostrem o conteúdo inteiro
 st.markdown(
     """
     <style>
     header[data-testid="stHeader"] { background-color: #E6007E !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid #F5CCD8; }
     h1, h2, h3 { color: #C5006B !important; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; }
-    div[data-testid="stDataFrame"] { width: 100% !important; }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Exibindo o logotipo no topo
-try:
-    st.image("icone.png", width=100)
-except Exception:
-    pass
+# Inicializa o estado da sessão para navegação
+if "perfil_atual" not in st.session_state:
+    st.session_state.perfil_atual = "Home"
 
-st.title("📈 Relatório Executivo de Vendas")
-st.markdown("Visualização de vendas consolidadas e detalhadas com ordenação precisa por Material e Data.")
+if "pagina_atual" not in st.session_state:
+    st.session_state.pagina_atual = "Home"
 
-@st.cache_data(ttl=300)
-def baixar_vendas():
+# Função blindada para verificar o status geral das pastas no Supabase
+def verificar_status_supabase():
     if not supabase:
-        return None
+        return False
     try:
-        # Ajustado para o caminho exato dentro da pasta 'Gestao/' do bucket
-        file_res = supabase.storage.from_(BUCKET_NOME).download("Gestao/vendas_fixo.xlsx")
-        if file_res:
-            return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
-    except Exception as e:
-        # Tenta buscar alternativa caso o nome exato varie com letras minúsculas
-        try:
-            file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/vendas_fixo.xlsx")
-            if file_res:
-                return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
-        except Exception:
-            return None
-    return None
+        raiz = supabase.storage.from_(BUCKET_NOME).list("")
+        return raiz is not None and len(raiz) > 0
+    except Exception:
+        return False
 
-df_vendas = baixar_vendas()
-
-if df_vendas is not None:
-    # --- 1. FILTRO GLOBAL (MANDANTE PARA TODA A PÁGINA) ---
-    st.markdown("### 🌐 Filtro Global (Mandante da Página)")
-    g1, g2, g3 = st.columns(3)
+# ==========================================
+# BARRA LATERAL (Navegação de Perfis)
+# ==========================================
+with st.sidebar:
+    try:
+        st.image("logo_vonny.png", use_container_width=True)
+    except:
+        st.markdown("<h2 style='color: #E6007E; text-align: center; margin-bottom: 0px;'>VONNÝ</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; font-size: 11px; color: #666; letter-spacing: 2px;'>COSMÉTICOS</p>", unsafe_allow_html=True)
     
-    df_global = df_vendas.copy()
-
-    if "Divisão" in df_vendas.columns:
-        lojas_g = sorted(df_vendas["Divisão"].dropna().astype(str).unique())
-        with g1:
-            loja_g = st.multiselect("Loja Global (Divisão)", options=lojas_g, key="global_loja")
-        if loja_g:
-            df_global = df_global[df_global["Divisão"].astype(str).isin(loja_g)]
-
-    if "Material" in df_vendas.columns:
-        mat_g = sorted(df_vendas["Material"].dropna().astype(str).unique())
-        with g2:
-            material_g = st.multiselect("Material Global", options=mat_g, key="global_material")
-        if material_g:
-            df_global = df_global[df_global["Material"].astype(str).isin(material_g)]
-
-    if "Grupo de mercadorias" in df_vendas.columns:
-        grupo_g = sorted(df_vendas["Grupo de mercadorias"].dropna().astype(str).unique())
-        with g3:
-            grupo_sel_g = st.multiselect("Grupo Global", options=grupo_g, key="global_grupo")
-        if grupo_sel_g:
-            df_global = df_global[df_global["Grupo de mercadorias"].astype(str).isin(grupo_sel_g)]
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    m1, m2 = st.columns(2)
-    with m1:
-        total_qtd = df_global["Quantidade faturada"].sum() if "Quantidade faturada" in df_global.columns else 0
-        st.metric("📦 Quantidade Total Faturada (Global)", f"{total_qtd:,.0f}".replace(",", "."))
-    with m2:
-        total_val = df_global["Valor líquido"].sum() if "Valor líquido" in df_global.columns else 0
-        st.metric("💰 Valor Líquido Total (Global)", f"R$ {total_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    if AMBIENTE_STAGING:
+        st.info("🛠️ **Staging (Testes)**")
+        
+    st.markdown("---")
+    
+    st.markdown("### Selecione o Perfil:")
+    if st.button("🏠 Menu Principal", key="sb_home"):
+        st.session_state.perfil_atual = "Home"
+        st.session_state.pagina_atual = "Home"
+        st.rerun()
+        
+    if st.button("🛠️ Visão Administrativa", key="sb_admin"):
+        st.session_state.perfil_atual = "Admin"
+        st.rerun()
+        
+    if st.button("📦 Visão Gestão / Produtos", key="sb_gerente"):
+        st.session_state.perfil_atual = "Gerente"
+        st.session_state.pagina_atual = "Home"
+        st.rerun()
 
     st.markdown("---")
-
-    # --- TABELA 1: CONSOLIDADA ---
-    st.markdown("### 📊 Visão Consolidada (Agrupada)")
-    
-    with st.expander("🔍 Filtros específicos da Tabela Consolidada"):
-        fc1, fc2 = st.columns(2)
-        df_cons_filtrado = df_global.copy()
-        
-        if "Divisão" in df_cons_filtrado.columns:
-            l_cons = sorted(df_cons_filtrado["Divisão"].dropna().astype(str).unique())
-            with fc1:
-                sel_l_cons = st.multiselect("Filtrar Loja (Consolidado)", options=l_cons, key="cons_loja")
-            if sel_l_cons:
-                df_cons_filtrado = df_cons_filtrado[df_cons_filtrado["Divisão"].astype(str).isin(sel_l_cons)]
-
-        if "Material" in df_cons_filtrado.columns:
-            m_cons = sorted(df_cons_filtrado["Material"].dropna().astype(str).unique())
-            with fc2:
-                sel_m_cons = st.multiselect("Filtrar Material (Consolidado)", options=m_cons, key="cons_mat")
-            if sel_m_cons:
-                df_cons_filtrado = df_cons_filtrado[df_cons_filtrado["Material"].astype(str).isin(sel_m_cons)]
-
-    colunas_agrupamento = [c for c in ["Divisão", "Material", "Denominação de item", "Grupo de mercadorias"] if c in df_cons_filtrado.columns]
-    colunas_soma = [c for c in ["Quantidade faturada", "Valor líquido", "Subtotal 1", "Preço interno"] if c in df_cons_filtrado.columns]
-    
-    if colunas_agrupamento and colunas_soma:
-        df_consolidado = df_cons_filtrado.groupby(colunas_agrupamento, as_index=False)[colunas_soma].sum()
+    st.markdown("### 📊 Status dos Dados")
+    if verificar_status_supabase():
+        st.success("✅ Sincronizado com Supabase")
     else:
-        df_consolidado = df_cons_filtrado.copy()
+        st.warning("⚠️ Nenhum ficheiro no Supabase")
 
-    if "Valor líquido" in df_consolidado.columns:
-        df_consolidado = df_consolidado.sort_values(by="Valor líquido", ascending=False)
+# ==========================================
+# AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
+# ==========================================
+if AMBIENTE_STAGING:
+    st.warning("⚠️ **ATENÇÃO: Você está a aceder à versão de testes (Staging).** As alterações feitas aqui não afetam o painel oficial em produção.")
 
-    config_colunas_cons = {}
-    for col in df_consolidado.columns:
-        col_lower = col.lower()
-        if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
-            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="R$ %,.2f")
-        elif "quantidade" in col_lower or "utiliz" in col_lower:
-            config_colunas_cons[col] = st.column_config.NumberColumn(col, format="%,.0f")
-
-    st.dataframe(df_consolidado, use_container_width=True, column_config=config_colunas_cons)
-
-
-    # --- TABELA 2: COMPLETA / DETALHADA ---
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("### 📋 Visão Completa (Detalhada / Sem Consolidação)")
+# ==========================================
+# 1. HOME / SELEÇÃO DE PERFIL
+# ==========================================
+if st.session_state.perfil_atual == "Home":
+    st.title("📊 Dashboard Executivo - Vonný")
+    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase. Escolha abaixo qual visão deseja aceder:")
     
-    with st.expander("🔍 Filtros específicos da Tabela Detalhada (Incluindo Análise Inteligente de Devolução)"):
-        fd1, fd2, fd3, fd4 = st.columns(4)
-        df_det_filtrado = df_global.copy()
-        
-        if "Divisão" in df_det_filtrado.columns:
-            l_det = sorted(df_det_filtrado["Divisão"].dropna().astype(str).unique())
-            with fd1:
-                sel_l_det = st.multiselect("Filtrar Loja (Detalhado)", options=l_det, key="det_loja")
-            if sel_l_det:
-                df_det_filtrado = df_det_filtrado[df_det_filtrado["Divisão"].astype(str).isin(sel_l_det)]
-
-        if "Material" in df_det_filtrado.columns:
-            m_det = sorted(df_det_filtrado["Material"].dropna().astype(str).unique())
-            with fd2:
-                sel_m_det = st.multiselect("Filtrar Material (Detalhado)", options=m_det, key="det_mat")
-            if sel_m_det:
-                df_det_filtrado = df_det_filtrado[df_det_filtrado["Material"].astype(str).isin(sel_m_det)]
-
-        # Filtro tradicional de Devolução
-        col_dev_possiveis = ["Devolução", "Devolucao"]
-        col_dev_encontrada = next((c for c in col_dev_possiveis if c in df_det_filtrado.columns), None)
-        
-        filtro_inteligente_ativo = False
-
-        if col_dev_encontrada:
-            dev_ops = sorted(df_det_filtrado[col_dev_encontrada].dropna().astype(str).unique())
-            with fd3:
-                sel_dev = st.multiselect("Filtro Direto Devolução", options=dev_ops, key="det_dev")
-            if sel_dev:
-                df_det_filtrado = df_det_filtrado[df_det_filtrado[col_dev_encontrada].astype(str).isin(sel_dev)]
-
-            # NOVO FILTRO INTELIGENTE DE DEVOLUÇÃO POR MATERIAL
-            with fd4:
-                sel_dev_inteligente = st.multiselect("Análise: Trazer Material Completo com Devolução", options=dev_ops, key="det_dev_inteligente")
+    st.markdown("<br>", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 🛠️ Visão Administrativa")
+        st.markdown("Área restrita para visualização e upload de ficheiros na pasta **Administração**.")
+        if st.button("Aceder Administrativo ➔", key="btn_admin"):
+            st.session_state.perfil_atual = "Admin"
+            st.rerun()
             
-            if sel_dev_inteligente and "Material" in df_det_filtrado.columns:
-                materiais_com_devolucao = df_det_filtrado[df_det_filtrado[col_dev_encontrada].astype(str).isin(sel_dev_inteligente)]["Material"].unique()
-                df_det_filtrado = df_det_filtrado[df_det_filtrado["Material"].isin(materiais_com_devolucao)]
-                filtro_inteligente_ativo = True
-        else:
-            with fd3:
-                st.info("Coluna 'Devolução' não encontrada.")
-            with fd4:
-                st.info("Indisponível.")
+    with col2:
+        st.markdown("### 📦 Visão Gestores de Produto")
+        st.markdown("Área executiva para ficheiros da pasta **Gestao** (Estoque / Vendas) e análises interativas.")
+        if st.button("Aceder Gestão ➔", key="btn_gerente"):
+            st.session_state.perfil_atual = "Gerente"
+            st.session_state.pagina_atual = "Home"
+            st.rerun()
 
-    # Identifica coluna de data para ordenação cronológica precisa
-    col_data_encontrada = next((c for c in df_det_filtrado.columns if "data" in c.lower()), None)
+# ==========================================
+# 2. VISÃO ADMINISTRATIVA (PASTA ADMINISTRAÇÃO)
+# ==========================================
+elif st.session_state.perfil_atual == "Admin":
+    st.title("🛠️ Painel Administrativo - Ficheiros de Parâmetros")
+    st.markdown("Estes são os ficheiros cadastrais e de parametrização armazenados na pasta **Administração** do Supabase.")
 
-    # ORDENAÇÃO
-    if filtro_inteligente_ativo and "Material" in df_det_filtrado.columns and col_data_encontrada:
-        df_det_filtrado["_data_temp"] = pd.to_datetime(df_det_filtrado[col_data_encontrada], errors="coerce")
-        df_det_filtrado = df_det_filtrado.sort_values(by=["Material", "_data_temp"], ascending=[True, True])
-        df_det_filtrado = df_det_filtrado.drop(columns=["_data_temp"])
-    elif filtro_inteligente_ativo and "Material" in df_det_filtrado.columns:
-        df_det_filtrado = df_det_filtrado.sort_values(by="Material", ascending=True)
+    uploaded_files_admin = st.file_uploader(
+        "Enviar novos ficheiros para Administração",
+        type=["xlsx", "xlsm", "xlsb"],
+        accept_multiple_files=True,
+        key="multi_upload_admin"
+    )
+
+    if uploaded_files_admin and supabase:
+        for file in uploaded_files_admin:
+            try:
+                bytes_dados = file.getvalue()
+                caminho_no_bucket = f"Administração/{file.name}"
+                supabase.storage.from_(BUCKET_NOME).upload(
+                    path=caminho_no_bucket,
+                    file=bytes_dados,
+                    file_options={"upsert": "true"}
+                )
+                st.success(f"🎉 Ficheiro **{file.name}** enviado para a pasta Administração com sucesso!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao enviar {file.name}: {e}")
+
+    st.markdown("---")
+    st.subheader("📋 Ficheiros Atualmente na Pasta 'Administração' (Supabase):")
+    
+    if supabase:
+        try:
+            arquivos_encontrados = []
+            raiz = supabase.storage.from_(BUCKET_NOME).list("")
+            if raiz:
+                for item in raiz:
+                    nome_item = item.get("name", "")
+                    if "admin" in nome_item.lower():
+                        conteudo_pasta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+                        if conteudo_pasta:
+                            for arq in conteudo_pasta:
+                                nome_arq = arq.get("name", "")
+                                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                    arquivos_encontrados.append(nome_arq)
+            
+            if not arquivos_encontrados:
+                for pasta_teste in ["Administração", "Administracao"]:
+                    resp = supabase.storage.from_(BUCKET_NOME).list(pasta_teste)
+                    if resp:
+                        for arq in resp:
+                            nome_arq = arq.get("name", "")
+                            if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                arquivos_encontrados.append(nome_arq)
+                        break
+
+            if arquivos_encontrados:
+                for arq_nome in arquivos_encontrados:
+                    st.markdown(f"- 📄 **{arq_nome}**")
+            else:
+                st.info("Nenhum ficheiro encontrado na pasta Administração.")
+        except Exception as e:
+            st.error(f"Erro ao ligar com o Supabase para listar os ficheiros: {e}")
     else:
-        if "Valor líquido" in df_det_filtrado.columns:
-            df_det_filtrado = df_det_filtrado.sort_values(by="Valor líquido", ascending=False)
+        st.error("Erro de ligação com o cliente Supabase.")
 
-    # Tratamento final de exibição das datas para o formato DD/MM/AAAA limpo nas células
-    for col in df_det_filtrado.columns:
-        if "data" in col.lower():
-            df_det_filtrado[col] = pd.to_datetime(df_det_filtrado[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna(df_det_filtrado[col])
+# ==========================================
+# 3. VISÃO DOS GESTORES DE PRODUTO (PASTA GESTAO)
+# ==========================================
+elif st.session_state.perfil_atual == "Gerente":
+    
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("### 🧭 Módulos Gerenciais")
+        if st.button("📊 Menu Principal Gestão", key="sub_home"):
+            st.session_state.pagina_atual = "Home"
+            st.rerun()
+        if st.button("📋 Módulo de Stock", key="sub_estoques"):
+            st.session_state.pagina_atual = "Estoques"
+            st.rerun()
+        if st.button("📈 Módulo de Vendas", key="sub_vendas"):
+            st.session_state.pagina_atual = "Vendas"
+            st.rerun()
 
-    config_colunas_det = {}
-    for col in df_det_filtrado.columns:
-        col_lower = col.lower()
-        if "valor" in col_lower or "liquido" in col_lower or "subtotal" in col_lower or "preço" in col_lower or "preco" in col_lower:
-            config_colunas_det[col] = st.column_config.NumberColumn(col, format="R$ %,.2f")
-        elif "quantidade" in col_lower or "utiliz" in col_lower:
-            config_colunas_det[col] = st.column_config.NumberColumn(col, format="%,.0f")
+    if st.session_state.pagina_atual == "Home":
+        st.title("📦 Visão Executiva - Gestão de Produtos")
+        st.markdown("Faça o upload direto dos ficheiros da pasta **Gestao** (`estoque_fixo.xlsx` e `vendas_fixo.xlsx`) ou aceda aos módulos abaixo:")
 
-    st.dataframe(df_det_filtrado, use_container_width=True, column_config=config_colunas_det)
+        with st.expander("📂 Fazer Upload Direto para a Pasta Gestão (Supabase)", expanded=True):
+            col_u1, col_u2 = st.columns(2)
+            with col_u1:
+                file_e = st.file_uploader("Planilha de Stock (`estoque_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
+                if file_e is not None and supabase:
+                    try:
+                        supabase.storage.from_(BUCKET_NOME).upload(
+                            path="Gestao/estoque_fixo.xlsx",
+                            file=file_e.getvalue(),
+                            file_options={"upsert": "true"}
+                        )
+                        st.success("✅ Stock enviado e sincronizado na pasta Gestao!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
+            with col_u2:
+                file_v = st.file_uploader("Planilha de Vendas (`vendas_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_vendas_gerente")
+                if file_v is not None and supabase:
+                    try:
+                        supabase.storage.from_(BUCKET_NOME).upload(
+                            path="Gestao/vendas_fixo.xlsx",
+                            file=file_v.getvalue(),
+                            file_options={"upsert": "true"}
+                        )
+                        st.success("✅ Vendas enviadas e sincronizadas na pasta Gestao!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro: {e}")
 
-else:
-    st.warning("⚠️ Nenhuma planilha de Vendas encontrada no Supabase. Vá até a Central de Upload para enviar uma.")
+        # SECÇÃO ADICIONADA: Listagem clara dos ficheiros que já estão na pasta Gestao do Supabase
+        st.markdown("---")
+        st.subheader("📋 Ficheiros Atualmente na Pasta 'Gestao' (Supabase):")
+        if supabase:
+            try:
+                fich_gestao = []
+                # Tenta listar dinamicamente a pasta Gestao (tratando variações de acentuação)
+                raiz_g = supabase.storage.from_(BUCKET_NOME).list("")
+                if raiz_g:
+                    for item in raiz_g:
+                        nome_item = item.get("name", "")
+                        if "gestao" in nome_item.lower():
+                            conteudo_g = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+                            if conteudo_g:
+                                for arq in conteudo_g:
+                                    nome_arq = arq.get("name", "")
+                                    if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                        fich_gestao.append(nome_arq)
+                
+                if not fich_gestao:
+                    for p_g in ["Gestao", "Gestão"]:
+                        resp_g = supabase.storage.from_(BUCKET_NOME).list(p_g)
+                        if resp_g:
+                            for arq in resp_g:
+                                nome_arq = arq.get("name", "")
+                                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                    fich_gestao.append(nome_arq)
+                            break
+
+                if fich_gestao:
+                    for fg in fich_gestao:
+                        st.markdown(f"- 📄 **{fg}**")
+                else:
+                    st.info("Nenhum ficheiro encontrado na pasta Gestao.")
+            except Exception as e:
+                st.error(f"Erro ao listar ficheiros da pasta Gestao: {e}")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_g1, col_g2 = st.columns(2)
+
+        with col_g1:
+            st.markdown("### 📋 Módulo de Stock")
+            if st.button("Entrar em Stock ➔", key="g_estoque"):
+                st.session_state.pagina_atual = "Estoques"
+                st.rerun()
+
+        with col_g2:
+            st.markdown("### 📈 Módulo de Vendas")
+            if st.button("Entrar em Vendas ➔", key="g_vendas"):
+                st.session_state.pagina_atual = "Vendas"
+                st.rerun()
+
+    elif st.session_state.pagina_atual == "Estoques":
+        st.title("📋 Relatório Consolidado de Stock")
+        st.info("💡 Dica: Aceda à página dedicada de Stock pelo menu lateral para visualizar os filtros avançados em cascata e ordenação por saldo.")
+
+    elif st.session_state.pagina_atual == "Vendas":
+        st.title("📈 Relatório Executivo de Vendas")
+        st.info("💡 Dica: Aceda à página dedicada de Vendas pelo menu lateral para visualizar os filtros globais e a análise inteligente de devolução.")
