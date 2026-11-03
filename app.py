@@ -51,7 +51,7 @@ def verificar_status_supabase():
     if not supabase:
         return False
     try:
-         raiz = supabase.storage.from_(BUCKET_NOME).list("")
+        raiz = supabase.storage.from_(BUCKET_NOME).list("")
         return raiz is not None and len(raiz) > 0
     except Exception:
         return False
@@ -97,14 +97,14 @@ with st.sidebar:
 # AVISO CONDICIONAL NO TOPO (SÓ SE FOR STAGING)
 # ==========================================
 if AMBIENTE_STAGING:
-    st.warning("⚠️ **ATENÇÃO: Você está acessando a versão de testes (Staging).** Alterações feitas aqui não afetam o painel oficial em produção.")
+    st.warning("⚠️ **ATENÇÃO: Você está a aceder à versão de testes (Staging).** As alterações feitas aqui não afetam o painel oficial em produção.")
 
 # ==========================================
 # 1. HOME / SELEÇÃO DE PERFIL
 # ==========================================
 if st.session_state.perfil_atual == "Home":
     st.title("📊 Dashboard Executivo - Vonný")
-    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase. Escolha abaixo qual visão deseja acessar:")
+    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase. Escolha abaixo qual visão deseja aceder:")
     
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
@@ -112,14 +112,14 @@ if st.session_state.perfil_atual == "Home":
     with col1:
         st.markdown("### 🛠️ Visão Administrativa")
         st.markdown("Área restrita para visualização e upload de planilhas na pasta **Administração**.")
-        if st.button("Acessar Administrativo ➔", key="btn_admin"):
+        if st.button("Aceder Administrativo ➔", key="btn_admin"):
             st.session_state.perfil_atual = "Admin"
             st.rerun()
             
     with col2:
-        st.markdown("### 📦 Visão Gerentes de Produto")
+        st.markdown("### 📦 Visão Gestores de Produto")
         st.markdown("Área executiva para planilhas da pasta **Gestão** (Estoque / Vendas) e análises interativas.")
-        if st.button("Acessar Gestão ➔", key="btn_gerente"):
+        if st.button("Aceder Gestão ➔", key="btn_gerente"):
             st.session_state.perfil_atual = "Gerente"
             st.session_state.pagina_atual = "Home"
             st.rerun()
@@ -128,11 +128,11 @@ if st.session_state.perfil_atual == "Home":
 # 2. VISÃO ADMINISTRATIVA (PASTA ADMINISTRAÇÃO)
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
-    st.title("🛠️ Painel Administrativo - Arquivos de Parâmetros")
-    st.markdown("Estes são os arquivos cadastrais e de parametrização armazenados na pasta **Administração** do Supabase.")
+    st.title("🛠️ Painel Administrativo - Ficheiros de Parâmetros")
+    st.markdown("Estes são os ficheiros cadastrais e de parametrização armazenados na pasta **Administração** do Supabase.")
 
     uploaded_files_admin = st.file_uploader(
-        "Enviar novos arquivos para Administração",
+        "Enviar novos ficheiros para Administração",
         type=["xlsx", "xlsm", "xlsb"],
         accept_multiple_files=True,
         key="multi_upload_admin"
@@ -148,24 +148,23 @@ elif st.session_state.perfil_atual == "Admin":
                     file=bytes_dados,
                     file_options={"upsert": "true"}
                 )
-                st.success(f"🎉 Arquivo **{file.name}** enviado para a pasta Administração com sucesso!")
+                st.success(f"🎉 Ficheiro **{file.name}** enviado para a pasta Administração com sucesso!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Erro ao enviar {file.name}: {e}")
 
     st.markdown("---")
-    st.subheader("📋 Arquivos Atualmente na Pasta 'Administração' (Supabase):")
+    st.subheader("📋 Ficheiros Atualmente na Pasta 'Administração' (Supabase):")
     
     if supabase:
         try:
             arquivos_encontrados = []
             
-            # Varredura inteligente na raiz para encontrar a pasta de forma dinâmica (evita erro de acentuação)
+            # Varredura inteligente na raiz para encontrar a pasta de forma dinâmica
             raiz = supabase.storage.from_(BUCKET_NOME).list("")
             if raiz:
                 for item in raiz:
                     nome_item = item.get("name", "")
-                    # Identifica qualquer variação da pasta administrativa
                     if "admin" in nome_item.lower():
                         conteudo_pasta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
                         if conteudo_pasta:
@@ -174,7 +173,7 @@ elif st.session_state.perfil_atual == "Admin":
                                 if nome_arq and nome_arq != ".emptyFolderPlaceholder":
                                     arquivos_encontrados.append(nome_arq)
             
-            # Fallback direto caso a varredura dinâmica precise de suporte estrito
+            # Fallback direto
             if not arquivos_encontrados:
                 for pasta_teste in ["Administração", "Administracao"]:
                     resp = supabase.storage.from_(BUCKET_NOME).list(pasta_teste)
@@ -189,14 +188,14 @@ elif st.session_state.perfil_atual == "Admin":
                 for arq_nome in arquivos_encontrados:
                     st.markdown(f"- 📄 **{arq_nome}**")
             else:
-                st.info("Nenhum arquivo encontrado na pasta Administração.")
+                st.info("Nenhum ficheiro encontrado na pasta Administração.")
         except Exception as e:
-            st.error(f"Erro ao conectar com o Supabase para listar os arquivos: {e}")
+            st.error(f"Erro ao ligar com o Supabase para listar os ficheiros: {e}")
     else:
-        st.error("Erro de conexão com o cliente Supabase.")
+        st.error("Erro de ligação com o cliente Supabase.")
 
 # ==========================================
-# 3. VISÃO DOS GERENTES DE PRODUTO (PASTA GESTAO)
+# 3. VISÃO DOS GESTORES DE PRODUTO (PASTA GESTAO)
 # ==========================================
 elif st.session_state.perfil_atual == "Gerente":
     
@@ -206,7 +205,7 @@ elif st.session_state.perfil_atual == "Gerente":
         if st.button("📊 Menu Principal Gestão", key="sub_home"):
             st.session_state.pagina_atual = "Home"
             st.rerun()
-        if st.button("📋 Módulo de Estoques", key="sub_estoques"):
+        if st.button("📋 Módulo de Stock", key="sub_estoques"):
             st.session_state.pagina_atual = "Estoques"
             st.rerun()
         if st.button("📈 Módulo de Vendas", key="sub_vendas"):
@@ -215,12 +214,12 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos da pasta **Gestão** (`estoque_fixo.xlsx` e `vendas_fixo.xlsx`) ou acesse os módulos abaixo:")
+        st.markdown("Faça o upload direto dos ficheiros da pasta **Gestão** (`estoque_fixo.xlsx` e `vendas_fixo.xlsx`) ou aceda aos módulos abaixo:")
 
         with st.expander("📂 Fazer Upload Direto para a Pasta Gestão (Supabase)", expanded=True):
             col_u1, col_u2 = st.columns(2)
             with col_u1:
-                file_e = st.file_uploader("Planilha de Estoque (`estoque_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
+                file_e = st.file_uploader("Planilha de Stock (`estoque_fixo.xlsx`)", type=["xlsx", "xlsm"], key="up_estoque_gerente")
                 if file_e is not None and supabase:
                     try:
                         supabase.storage.from_(BUCKET_NOME).upload(
@@ -228,7 +227,7 @@ elif st.session_state.perfil_atual == "Gerente":
                             file=file_e.getvalue(),
                             file_options={"upsert": "true"}
                         )
-                        st.success("✅ Estoque enviado e sincronizado na pasta Gestao!")
+                        st.success("✅ Stock enviado e sincronizado na pasta Gestao!")
                     except Exception as e:
                         st.error(f"Erro: {e}")
             with col_u2:
@@ -248,8 +247,8 @@ elif st.session_state.perfil_atual == "Gerente":
         col_g1, col_g2 = st.columns(2)
 
         with col_g1:
-            st.markdown("### 📋 Módulo de Estoques")
-            if st.button("Entrar em Estoques ➔", key="g_estoque"):
+            st.markdown("### 📋 Módulo de Stock")
+            if st.button("Entrar em Stock ➔", key="g_estoque"):
                 st.session_state.pagina_atual = "Estoques"
                 st.rerun()
 
@@ -260,9 +259,9 @@ elif st.session_state.perfil_atual == "Gerente":
                 st.rerun()
 
     elif st.session_state.pagina_atual == "Estoques":
-        st.title("📋 Relatório Consolidado de Estoque")
-        st.info("💡 Dica: Acesse a página dedicada de Estoque pelo menu lateral para visualizar os filtros avançados em cascata e ordenação por saldo.")
+        st.title("📋 Relatório Consolidado de Stock")
+        st.info("💡 Dica: Aceda à página dedicada de Stock pelo menu lateral para visualizar os filtros avançados em cascata e ordenação por saldo.")
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
-        st.info("💡 Dica: Acesse a página dedicada de Vendas pelo menu lateral para visualizar os filtros globais e a análise inteligente de devolução.")
+        st.info("💡 Dica: Aceda à página dedicada de Vendas pelo menu lateral para visualizar os filtros globais e a análise inteligente de devolução.")
