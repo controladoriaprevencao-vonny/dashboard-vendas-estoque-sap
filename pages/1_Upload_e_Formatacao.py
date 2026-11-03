@@ -1,7 +1,6 @@
 import streamlit as st
 from supabase import create_client, Client
 
-# Configurações de Conexão com o Supabase
 SUPABASE_URL = "https://cfxrcnnuupabepbqascx.supabase.co"
 SUPABASE_KEY = "sb_publishable_-Hoz_n3NdCndYmNETF4sDQ_9Bzphw5Q"
 BUCKET_NOME = "dados-vonny"
@@ -15,33 +14,34 @@ def init_supabase():
 
 supabase: Client = init_supabase()
 
-st.markdown("### Upload de Gestão Fixo")
+st.set_page_config(
+    page_title="Upload de Gestão - Vonný",
+    page_icon="icone.png",
+    layout="wide",
+)
 
-# Função real para buscar os arquivos ativos no Supabase Storage
+if st.button("← Voltar ao Menu Principal"):
+    st.switch_page("app.py")
+
+st.markdown("### 📤 Upload de Gestão Fixo")
+
 def obter_nome_arquivo_ativo(tipo):
     if not supabase:
         return "Erro de conexão com o Supabase"
     try:
-        # Lista os arquivos dentro da pasta 'Gestao/' no bucket do Supabase
         resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
-        
         if not resposta:
             return "Nenhum arquivo encontrado"
-            
-        # Procura arquivos correspondentes ao tipo solicitado
         for arquivo in resposta:
             nome_arq = arquivo.get("name", "").lower()
             if tipo == "estoque" and ("estoque" in nome_arq or "02_nome_depositos" in nome_arq or "padrao" in nome_arq):
                 return arquivo.get("name")
             elif tipo == "vendas" and ("venda" in nome_arq or "faturado" in nome_arq or "produt" in nome_arq):
                 return arquivo.get("name")
-                
-        # Se não achar um específico, retorna o primeiro arquivo disponível na pasta
         if len(resposta) > 0:
             return resposta[0].get("name")
-            
         return "Nenhum arquivo ativo"
-    except Exception as e:
+    except Exception:
         return "Arquivo ativo no Supabase"
 
 col1, col2 = st.columns(2)
@@ -50,7 +50,6 @@ with col1:
     st.markdown("#### Planilha de Estoque")
     arquivo_estoque = st.file_uploader("Envie a planilha de estoque", type=["xlsx", "xlsm"], key="up_estoque")
     
-    # Busca o nome do arquivo que o site está usando atualmente no Supabase
     nome_ativo_estoque = obter_nome_arquivo_ativo("estoque")
     
     if arquivo_estoque is not None:
@@ -69,14 +68,12 @@ with col1:
             except Exception as e:
                 st.error(f"Erro ao enviar: {e}")
     else:
-        # Exibe exatamente o arquivo que está em uso pela aplicação
         st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_estoque}`")
 
 with col2:
     st.markdown("#### Planilha de Vendas")
     arquivo_vendas = st.file_uploader("Envie a planilha de vendas", type=["xlsx", "xlsm"], key="up_vendas")
     
-    # Busca o nome do arquivo de vendas ativo no Supabase
     nome_ativo_vendas = obter_nome_arquivo_ativo("vendas")
     
     if arquivo_vendas is not None:
@@ -95,5 +92,4 @@ with col2:
             except Exception as e:
                 st.error(f"Erro ao enviar: {e}")
     else:
-        # Exibe exatamente o arquivo que está em uso pela aplicação
         st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_vendas}`")
