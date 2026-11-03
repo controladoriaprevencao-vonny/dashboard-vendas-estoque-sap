@@ -46,17 +46,13 @@ if "perfil_atual" not in st.session_state:
 if "pagina_atual" not in st.session_state:
     st.session_state.pagina_atual = "Home"
 
-# Função para verificar o status geral das pastas no Supabase
+# Função blindada para verificar o status geral das pastas no Supabase
 def verificar_status_supabase():
     if not supabase:
         return False
     try:
-        resp_gestao = supabase.storage.from_(BUCKET_NOME).list("Gestao")
-        resp_admin = (
-            supabase.storage.from_(BUCKET_NOME).list("Administração") or 
-            supabase.storage.from_(BUCKET_NOME).list("Administracao")
-        )
-        return (resp_gestao is not None and len(resp_gestao) > 0) or (resp_admin is not None and len(resp_admin) > 0)
+         raiz = supabase.storage.from_(BUCKET_NOME).list("")
+        return raiz is not None and len(raiz) > 0
     except Exception:
         return False
 
@@ -164,37 +160,30 @@ elif st.session_state.perfil_atual == "Admin":
         try:
             arquivos_encontrados = []
             
-            # Tenta listar com acento
-            resp1 = supabase.storage.from_(BUCKET_NOME).list("Administração")
-            if resp1:
-                for arq in resp1:
-                    nome = arq.get('name', '')
-                    if nome and nome != ".emptyFolderPlaceholder":
-                        arquivos_encontrados.append(nome)
+            # Varredura inteligente na raiz para encontrar a pasta de forma dinâmica (evita erro de acentuação)
+            raiz = supabase.storage.from_(BUCKET_NOME).list("")
+            if raiz:
+                for item in raiz:
+                    nome_item = item.get("name", "")
+                    # Identifica qualquer variação da pasta administrativa
+                    if "admin" in nome_item.lower():
+                        conteudo_pasta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+                        if conteudo_pasta:
+                            for arq in conteudo_pasta:
+                                nome_arq = arq.get("name", "")
+                                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                    arquivos_encontrados.append(nome_arq)
             
-            # Se não achar, tenta sem acento
+            # Fallback direto caso a varredura dinâmica precise de suporte estrito
             if not arquivos_encontrados:
-                resp2 = supabase.storage.from_(BUCKET_NOME).list("Administracao")
-                if resp2:
-                    for arq in resp2:
-                        nome = arq.get('name', '')
-                        if nome and nome != ".emptyFolderPlaceholder":
-                            arquivos_encontrados.append(nome)
-            
-            # Se ainda assim estiver vazio, faz uma varredura geral listando a raiz
-            if not arquivos_encontrados:
-                resp_geral = supabase.storage.from_(BUCKET_NOME).list("")
-                if resp_geral:
-                    for item in resp_geral:
-                        # Se encontrou a pasta Administração na raiz, lista o conteúdo dela
-                        if item.get('name') in ["Administração", "Administracao"]:
-                            pasta_nome = item.get('name')
-                            resp_pasta = supabase.storage.from_(BUCKET_NOME).list(pasta_nome)
-                            if resp_pasta:
-                                for arq in resp_pasta:
-                                    nome = arq.get('name', '')
-                                    if nome and nome != ".emptyFolderPlaceholder":
-                                        arquivos_encontrados.append(nome)
+                for pasta_teste in ["Administração", "Administracao"]:
+                    resp = supabase.storage.from_(BUCKET_NOME).list(pasta_teste)
+                    if resp:
+                        for arq in resp:
+                            nome_arq = arq.get("name", "")
+                            if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                arquivos_encontrados.append(nome_arq)
+                        break
 
             if arquivos_encontrados:
                 for arq_nome in arquivos_encontrados:
