@@ -25,28 +25,31 @@ if st.button("← Voltar ao Menu Principal"):
 
 st.markdown("### 📤 Upload e Gerenciamento de Gestão")
 
-# Função para verificar se o arquivo fixo existe na pasta Gestao do Supabase
 def verificar_arquivo_existe(tipo):
     if not supabase:
         return False
     try:
         nome_procurado = "estoque_fixo.xlsx" if tipo == "estoque" else "vendas_fixo.xlsx"
-        resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
-        if resposta:
-            for arquivo in resposta:
-                if arquivo.get("name") == nome_procurado:
-                    return True
+        for pasta in ["Gestao", "Gestão"]:
+            resposta = supabase.storage.from_(BUCKET_NOME).list(pasta)
+            if resposta:
+                for arquivo in resposta:
+                    if arquivo.get("name") == nome_procurado:
+                        return True
         return False
     except Exception:
         return False
 
-# Função para apagar o arquivo do Supabase
 def apagar_arquivo_supabase(nome_arquivo):
     if not supabase:
         return False
     try:
-        caminho = f"Gestao/{nome_arquivo}"
-        supabase.storage.from_(BUCKET_NOME).remove([caminho])
+        for pasta in ["Gestao", "Gestão"]:
+            try:
+                caminho = f"{pasta}/{nome_arquivo}"
+                supabase.storage.from_(BUCKET_NOME).remove([caminho])
+            except:
+                continue
         return True
     except Exception as e:
         st.error(f"Erro ao apagar: {e}")
