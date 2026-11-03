@@ -25,30 +25,32 @@ if st.button("← Voltar ao Menu Principal"):
 
 st.markdown("### 📤 Upload de Gestão Fixo")
 
-# Função blindada para buscar os arquivos ativos na pasta de Gestão do Supabase
+# Função robusta para buscar os arquivos ativos diretamente na pasta Gestao do Supabase
 def obter_nome_arquivo_ativo(tipo):
     if not supabase:
         return "Erro de conexão com o Supabase"
     try:
-        resposta = None
-        # Varredura inteligente para lidar com variações de acentuação (Gestao / Gestão)
-        raiz = supabase.storage.from_(BUCKET_NOME).list("")
-        if raiz:
-            for item in raiz:
-                nome_item = item.get("name", "")
-                if "gestao" in nome_item.lower():
-                    resposta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+        resposta = []
+        # Tenta listar diretamente nas variações mais comuns da pasta
+        for pasta_alvo in ["Gestao", "Gestão", "gestao"]:
+            try:
+                res = supabase.storage.from_(BUCKET_NOME).list(pasta_alvo)
+                if res and len(res) > 0:
+                    resposta = res
                     break
-        
-        # Fallback direto se a raiz não retornar
+            except:
+                continue
+                
+        # Se não encontrou nas pastas direto, tenta varrer a raiz
         if not resposta:
-            for p in ["Gestao", "Gestão"]:
-                try:
-                    resposta = supabase.storage.from_(BUCKET_NOME).list(p)
-                    if resposta:
-                        break
-                except:
-                    continue
+            raiz = supabase.storage.from_(BUCKET_NOME).list("")
+            if raiz:
+                for item in raiz:
+                    nome_item = item.get("name", "")
+                    if "gestao" in nome_item.lower():
+                        resposta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+                        if resposta:
+                            break
 
         if not resposta:
             return "Nenhum arquivo encontrado"
@@ -60,12 +62,12 @@ def obter_nome_arquivo_ativo(tipo):
             elif tipo == "vendas" and ("venda" in nome_arq or "faturado" in nome_arq or "produt" in nome_arq):
                 return arquivo.get("name")
                 
-        if len(resposta) > 0:
-            for arq in resposta:
-                nome_arq = arq.get("name", "")
-                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
-                    return nome_arq
-                    
+        # Se houver arquivos mas nenhum bater com o filtro exato, retorna o primeiro válido
+        for arq in resposta:
+            nome_arq = arq.get("name", "")
+            if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                return nome_arq
+                
         return "Nenhum arquivo ativo"
     except Exception as e:
         return "Arquivo ativo no Supabase"
