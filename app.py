@@ -71,7 +71,6 @@ if st.session_state.pagina_atual == "Home":
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # 3 colunas para os três botões principais solicitados
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -110,14 +109,51 @@ elif st.session_state.pagina_atual == "Upload":
 
     with tab1:
         st.markdown("### Upload para Administração")
-        up_admin = st.file_uploader("Enviar ficheiros de parâmetros", type=["xlsx", "xlsm", "xlsb"], accept_multiple_files=True, key="up_adm")
+        up_admin = st.file_uploader("Enviar novos ficheiros de parâmetros", type=["xlsx", "xlsm", "xlsb"], accept_multiple_files=True, key="up_adm")
         if up_admin and supabase:
             for f in up_admin:
                 try:
                     supabase.storage.from_(BUCKET_NOME).upload(path=f"Administração/{f.name}", file=f.getvalue(), file_options={"upsert": "true"})
                     st.success(f"Ficheiro **{f.name}** enviado com sucesso!")
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao enviar {f.name}: {e}")
+
+        st.markdown("---")
+        st.subheader("📋 Ficheiros Atualmente na Pasta 'Administração' (Supabase):")
+        if supabase:
+            try:
+                arquivos_encontrados = []
+                # Varredura inteligente para lidar com variações de acentuação na pasta
+                raiz = supabase.storage.from_(BUCKET_NOME).list("")
+                if raiz:
+                    for item in raiz:
+                        nome_item = item.get("name", "")
+                        if "admin" in nome_item.lower():
+                            conteudo_pasta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+                            if conteudo_pasta:
+                                for arq in conteudo_pasta:
+                                    nome_arq = arq.get("name", "")
+                                    if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                        arquivos_encontrados.append(nome_arq)
+                
+                if not arquivos_encontrados:
+                    for pasta_teste in ["Administração", "Administracao"]:
+                        resp = supabase.storage.from_(BUCKET_NOME).list(pasta_teste)
+                        if resp:
+                            for arq in resp:
+                                nome_arq = arq.get("name", "")
+                                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                                    arquivos_encontrados.append(nome_arq)
+                            break
+
+                if arquivos_encontrados:
+                    for arq_nome in arquivos_encontrados:
+                        st.markdown(f"- 📄 **{arq_nome}**")
+                else:
+                    st.info("Nenhum ficheiro encontrado na pasta Administração.")
+            except Exception as e:
+                st.error(f"Erro ao listar ficheiros: {e}")
 
     with tab2:
         st.markdown("### Upload para Gestão")
@@ -128,6 +164,7 @@ elif st.session_state.pagina_atual == "Upload":
                 try:
                     supabase.storage.from_(BUCKET_NOME).upload(path="Gestao/estoque_fixo.xlsx", file=up_est.getvalue(), file_options={"upsert": "true"})
                     st.success("Stock atualizado com sucesso!")
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Erro: {e}")
         with col_g2:
@@ -136,6 +173,7 @@ elif st.session_state.pagina_atual == "Upload":
                 try:
                     supabase.storage.from_(BUCKET_NOME).upload(path="Gestao/vendas_fixo.xlsx", file=up_ven.getvalue(), file_options={"upsert": "true"})
                     st.success("Vendas atualizadas com sucesso!")
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Erro: {e}")
 
