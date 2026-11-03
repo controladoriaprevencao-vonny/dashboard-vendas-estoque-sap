@@ -51,8 +51,9 @@ def verificar_status_supabase():
     if not supabase:
         return False
     try:
-        resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
-        return len(resposta) > 0
+        resposta_gestao = supabase.storage.from_(BUCKET_NOME).list("Gestao")
+        resposta_admin = supabase.storage.from_(BUCKET_NOME).list("Administracao")
+        return len(resposta_gestao) > 0 or len(resposta_admin) > 0
     except Exception:
         return False
 
@@ -104,14 +105,14 @@ if AMBIENTE_STAGING:
 # ==========================================
 if st.session_state.perfil_atual == "Home":
     st.title("📊 Dashboard Executivo - Vonný")
-    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase.")
+    st.markdown("Bem-vindo ao sistema de relatórios gerenciais integrados ao SAP e hospedados no Supabase. Escolha abaixo qual visão deseja acessar:")
     
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("### 🛠️ Visão Administrativa")
-        st.markdown("Área restrita para upload múltiplo e fixação de planilhas administrativas.")
+        st.markdown("Área restrita para upload múltiplo e gerenciamento de planilhas na pasta **Administração**.")
         if st.button("Acessar Administrativo ➔", key="btn_admin"):
             st.session_state.perfil_atual = "Admin"
             st.rerun()
@@ -125,46 +126,48 @@ if st.session_state.perfil_atual == "Home":
             st.rerun()
 
 # ==========================================
-# 2. VISÃO ADMINISTRATIVA (UPLOAD MÚLTIPLO)
+# 2. VISÃO ADMINISTRATIVA (PASTA ADMINISTRAÇÃO)
 # ==========================================
 elif st.session_state.perfil_atual == "Admin":
-    st.title("🛠️ Painel Administrativo - Upload de Arquivos")
-    st.markdown("Selecione ou arraste os arquivos para enviá-los diretamente ao bucket do Supabase (`dados-vonny`).")
+    st.title("🛠️ Painel Administrativo - Arquivos de Parâmetros")
+    st.markdown("Estes são os arquivos cadastrais e de parametrização armazenados na pasta **Administração** do Supabase.")
 
     uploaded_files = st.file_uploader(
-        "Upload de Arquivos Administrativos",
-        type=["xlsx", "xlsm"],
+        "Enviar arquivos para Administração",
+        type=["xlsx", "xlsm", "xlsb"],
         accept_multiple_files=True,
-        key="multi_upload_admin",
-        label_visibility="collapsed"
+        key="multi_upload_admin"
     )
 
     if uploaded_files and supabase:
         for file in uploaded_files:
             try:
                 bytes_dados = file.getvalue()
-                caminho_no_bucket = f"Gestao/{file.name}"
+                caminho_no_bucket = f"Administracao/{file.name}"
                 supabase.storage.from_(BUCKET_NOME).upload(
                     path=caminho_no_bucket,
                     file=bytes_dados,
                     file_options={"upsert": "true"}
                 )
-                st.success(f"🎉 Arquivo **{file.name}** enviado e sincronizado no Supabase com sucesso!")
+                st.success(f"🎉 Arquivo **{file.name}** enviado para a pasta Administração com sucesso!")
             except Exception as e:
                 st.error(f"Erro ao enviar {file.name}: {e}")
 
     st.markdown("---")
-    st.subheader("📋 Arquivos Atualmente no Supabase (Pasta Gestao):")
+    st.subheader("📋 Arquivos Atualmente na Pasta 'Administração' (Supabase):")
+    
     if supabase:
         try:
-            resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
+            resposta = supabase.storage.from_(BUCKET_NOME).list("Administracao")
             if resposta:
                 for arq in resposta:
-                    st.markdown(f"- 📄 **{arq.get('name')}**")
+                    nome_arquivo = arq.get('name')
+                    if nome_arquivo and nome_arquivo != ".emptyFolderPlaceholder":
+                        st.markdown(f"- 📄 **{nome_arquivo}**")
             else:
-                st.info("Nenhum arquivo encontrado no bucket.")
-        except Exception:
-            st.info("Não foi possível listar os arquivos do Supabase.")
+                st.info("Nenhum arquivo encontrado na pasta Administração.")
+        except Exception as e:
+            st.info(f"Não foi possível listar os arquivos do Supabase: {e}")
 
 # ==========================================
 # 3. VISÃO DOS GERENTES DE PRODUTO
@@ -186,7 +189,7 @@ elif st.session_state.perfil_atual == "Gerente":
 
     if st.session_state.pagina_atual == "Home":
         st.title("📦 Visão Executiva - Gestão de Produtos")
-        st.markdown("Faça o upload direto dos arquivos abaixo para atualizar o Supabase ou acesse os módulos de relatórios:")
+        st.markdown("Faça o upload direto dos arquivos abaixo para atualizar a pasta **Gestao** no Supabase ou acesse os módulos:")
 
         with st.expander("📂 Fazer Upload Direto para o Supabase (Estoque e Vendas)", expanded=True):
             col_u1, col_u2 = st.columns(2)
@@ -232,8 +235,8 @@ elif st.session_state.perfil_atual == "Gerente":
 
     elif st.session_state.pagina_atual == "Estoques":
         st.title("📋 Relatório Consolidado de Estoque")
-        st.info("💡 Dica: Acesse a página dedicada de Estoque pelo menu lateral do Streamlit para visualizar os filtros avançados em cascata e ordenação por saldo.")
+        st.info("💡 Dica: Acesse a página dedicada de Estoque pelo menu lateral para visualizar os filtros avançados em cascata e ordenação por saldo.")
 
     elif st.session_state.pagina_atual == "Vendas":
         st.title("📈 Relatório Executivo de Vendas")
-        st.info("💡 Dica: Acesse a página dedicada de Vendas pelo menu lateral do Streamlit para visualizar os filtros globais e a análise inteligente de devolução.")
+        st.info("💡 Dica: Acesse a página dedicada de Vendas pelo menu lateral para visualizar os filtros globais e a análise inteligente de devolução.")
