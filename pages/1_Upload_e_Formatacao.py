@@ -23,49 +23,52 @@ st.set_page_config(
 if st.button("← Voltar ao Menu Principal"):
     st.switch_page("app.py")
 
-st.markdown("### 📤 Upload de Gestão Fixo")
+st.markdown("### 📤 Upload e Gerenciamento de Gestão")
 
-# Função direta para verificar se o arquivo fixo existe na pasta Gestao do Supabase
-def obter_nome_arquivo_ativo(tipo):
+# Função para verificar se o arquivo fixo existe na pasta Gestao do Supabase
+def verificar_arquivo_existe(tipo):
     if not supabase:
-        return "Erro de conexão com o Supabase"
+        return False
     try:
         nome_procurado = "estoque_fixo.xlsx" if tipo == "estoque" else "vendas_fixo.xlsx"
-        
-        # Lista os arquivos dentro da pasta Gestao
         resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
-        
         if resposta:
             for arquivo in resposta:
                 if arquivo.get("name") == nome_procurado:
-                    return nome_procurado
-                    
-        # Fallback caso a pasta esteja com outra variação
-        for pasta in ["Gestão", "gestao"]:
-            res = supabase.storage.from_(BUCKET_NOME).list(pasta)
-            if res:
-                for arquivo in res:
-                    if arquivo.get("name") == nome_procurado:
-                        return nome_procurado
-                        
-        return nome_procurado  # Exibe o nome padrão esperado caso esteja lá mas a listagem venha vazia
+                    return True
+        return False
     except Exception:
-        return "estoque_fixo.xlsx" if tipo == "estoque" else "vendas_fixo.xlsx"
+        return False
+
+# Função para apagar o arquivo do Supabase
+def apagar_arquivo_supabase(nome_arquivo):
+    if not supabase:
+        return False
+    try:
+        caminho = f"Gestao/{nome_arquivo}"
+        supabase.storage.from_(BUCKET_NOME).remove([caminho])
+        return True
+    except Exception as e:
+        st.error(f"Erro ao apagar: {e}")
+        return False
 
 col1, col2 = st.columns(2)
 
+# ==========================================
+# COLUNA 1: PLANILHA DE ESTOQUE
+# ==========================================
 with col1:
     st.markdown("#### Planilha de Estoque")
-    arquivo_estoque = st.file_uploader("Envie a planilha de estoque", type=["xlsx", "xlsm"], key="up_estoque")
+    arquivo_estoque = st.file_uploader("Envie a nova planilha de estoque", type=["xlsx", "xlsm"], key="up_estoque")
     
-    nome_ativo_estoque = obter_nome_arquivo_ativo("estoque")
+    existe_estoque = verificar_arquivo_existe("estoque")
     
     if arquivo_estoque is not None:
         st.success(f"✅ **Novo arquivo pronto para envio:** {arquivo_estoque.name}")
         if st.button("Confirmar Envio (Estoque)", key="btn_est"):
             try:
                 bytes_dados = arquivo_estoque.getvalue()
-                caminho_no_bucket = f"Gestao/estoque_fixo.xlsx"
+                caminho_no_bucket = "Gestao/estoque_fixo.xlsx"
                 supabase.storage.from_(BUCKET_NOME).upload(
                     path=caminho_no_bucket,
                     file=bytes_dados,
@@ -76,20 +79,30 @@ with col1:
             except Exception as e:
                 st.error(f"Erro ao enviar: {e}")
     else:
-        st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_estoque}`")
+        if existe_estoque:
+            st.info("📂 **Arquivo em uso no sistema (Supabase):** `estoque_fixo.xlsx`")
+            if st.button("🗑️ Apagar Estoque do Supabase", key="del_est", type="secondary"):
+                if apagar_arquivo_supabase("estoque_fixo.xlsx"):
+                    st.success("🗑️ Ficheiro de estoque apagado com sucesso do Supabase!")
+                    st.rerun()
+        else:
+            st.warning("⚠️ Nenhum arquivo de estoque encontrado na pasta Gestão.")
 
+# ==========================================
+# COLUNA 2: PLANILHA DE VENDAS
+# ==========================================
 with col2:
     st.markdown("#### Planilha de Vendas")
-    arquivo_vendas = st.file_uploader("Envie a planilha de vendas", type=["xlsx", "xlsm"], key="up_vendas")
+    arquivo_vendas = st.file_uploader("Envie a nova planilha de vendas", type=["xlsx", "xlsm"], key="up_vendas")
     
-    nome_ativo_vendas = obter_nome_arquivo_ativo("vendas")
+    existe_vendas = verificar_arquivo_existe("vendas")
     
     if arquivo_vendas is not None:
         st.success(f"✅ **Novo arquivo pronto para envio:** {arquivo_vendas.name}")
         if st.button("Confirmar Envio (Vendas)", key="btn_vend"):
             try:
                 bytes_dados = arquivo_vendas.getvalue()
-                caminho_no_bucket = f"Gestao/vendas_fixo.xlsx"
+                caminho_no_bucket = "Gestao/vendas_fixo.xlsx"
                 supabase.storage.from_(BUCKET_NOME).upload(
                     path=caminho_no_bucket,
                     file=bytes_dados,
@@ -100,4 +113,11 @@ with col2:
             except Exception as e:
                 st.error(f"Erro ao enviar: {e}")
     else:
-        st.info(f"📂 **Arquivo em uso no sistema (Supabase):** `{nome_ativo_vendas}`")
+        if existe_vendas:
+            st.info("📂 **Arquivo em uso no sistema (Supabase):** `vendas_fixo.xlsx`")
+            if st.button("🗑️ Apagar Vendas do Supabase", key="del_vend", type="secondary"):
+                if apagar_arquivo_supabase("vendas_fixo.xlsx"):
+                    st.success("🗑️ Ficheiro de vendas apagado com sucesso do Supabase!")
+                    st.rerun()
+        else:
+            st.warning("⚠️ Nenhum arquivo de vendas encontrado na pasta Gestão.")
