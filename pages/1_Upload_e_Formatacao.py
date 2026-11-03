@@ -25,23 +25,49 @@ if st.button("← Voltar ao Menu Principal"):
 
 st.markdown("### 📤 Upload de Gestão Fixo")
 
+# Função blindada para buscar os arquivos ativos na pasta de Gestão do Supabase
 def obter_nome_arquivo_ativo(tipo):
     if not supabase:
         return "Erro de conexão com o Supabase"
     try:
-        resposta = supabase.storage.from_(BUCKET_NOME).list("Gestao")
+        resposta = None
+        # Varredura inteligente para lidar com variações de acentuação (Gestao / Gestão)
+        raiz = supabase.storage.from_(BUCKET_NOME).list("")
+        if raiz:
+            for item in raiz:
+                nome_item = item.get("name", "")
+                if "gestao" in nome_item.lower():
+                    resposta = supabase.storage.from_(BUCKET_NOME).list(nome_item)
+                    break
+        
+        # Fallback direto se a raiz não retornar
+        if not resposta:
+            for p in ["Gestao", "Gestão"]:
+                try:
+                    resposta = supabase.storage.from_(BUCKET_NOME).list(p)
+                    if resposta:
+                        break
+                except:
+                    continue
+
         if not resposta:
             return "Nenhum arquivo encontrado"
+            
         for arquivo in resposta:
             nome_arq = arquivo.get("name", "").lower()
             if tipo == "estoque" and ("estoque" in nome_arq or "02_nome_depositos" in nome_arq or "padrao" in nome_arq):
                 return arquivo.get("name")
             elif tipo == "vendas" and ("venda" in nome_arq or "faturado" in nome_arq or "produt" in nome_arq):
                 return arquivo.get("name")
+                
         if len(resposta) > 0:
-            return resposta[0].get("name")
+            for arq in resposta:
+                nome_arq = arq.get("name", "")
+                if nome_arq and nome_arq != ".emptyFolderPlaceholder":
+                    return nome_arq
+                    
         return "Nenhum arquivo ativo"
-    except Exception:
+    except Exception as e:
         return "Arquivo ativo no Supabase"
 
 col1, col2 = st.columns(2)
