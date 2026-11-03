@@ -44,15 +44,14 @@ def apagar_arquivo_supabase(nome_arquivo):
     if not supabase:
         return False
     try:
-        for pasta in ["Gestao", "Gestão"]:
-            try:
-                caminho = f"{pasta}/{nome_arquivo}"
-                supabase.storage.from_(BUCKET_NOME).remove([caminho])
-            except:
-                continue
+        caminho = f"Gestao/{nome_arquivo}"
+        supabase.storage.from_(BUCKET_NOME).remove([caminho])
+        
+        caminho_acentuado = f"Gestão/{nome_arquivo}"
+        supabase.storage.from_(BUCKET_NOME).remove([caminho_acentuado])
         return True
     except Exception as e:
-        st.error(f"Erro ao apagar: {e}")
+        st.error(f"Erro ao apagar do Supabase: {e}")
         return False
 
 col1, col2 = st.columns(2)
@@ -105,7 +104,7 @@ with col2:
         if st.button("Confirmar Envio (Vendas)", key="btn_vend"):
             try:
                 bytes_dados = arquivo_vendas.getvalue()
-                caminho_no_bucket = "Gestao/vendas_fixo.xlsx"
+                caminho_no_bucket = f"Gestao/vendas_fixo.xlsx"
                 supabase.storage.from_(BUCKET_NOME).upload(
                     path=caminho_no_bucket,
                     file=bytes_dados,
