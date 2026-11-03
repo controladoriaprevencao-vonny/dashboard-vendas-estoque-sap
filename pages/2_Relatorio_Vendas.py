@@ -49,11 +49,18 @@ def baixar_vendas():
     if not supabase:
         return None
     try:
-        file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/vendas_fixo.xlsx")
+        # Ajustado para o caminho exato dentro da pasta 'Gestao/' do bucket
+        file_res = supabase.storage.from_(BUCKET_NOME).download("Gestao/vendas_fixo.xlsx")
         if file_res:
             return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
-    except Exception:
-        return None
+    except Exception as e:
+        # Tenta buscar alternativa caso o nome exato varie com letras minúsculas
+        try:
+            file_res = supabase.storage.from_(BUCKET_NOME).download("gestao/vendas_fixo.xlsx")
+            if file_res:
+                return pd.read_excel(io.BytesIO(file_res), engine="openpyxl")
+        except Exception:
+            return None
     return None
 
 df_vendas = baixar_vendas()
@@ -194,7 +201,6 @@ if df_vendas is not None:
 
     # ORDENAÇÃO
     if filtro_inteligente_ativo and "Material" in df_det_filtrado.columns and col_data_encontrada:
-        # Cria cópia temporária da data convertida em datetime para ordenar perfeitamente de forma cronológica
         df_det_filtrado["_data_temp"] = pd.to_datetime(df_det_filtrado[col_data_encontrada], errors="coerce")
         df_det_filtrado = df_det_filtrado.sort_values(by=["Material", "_data_temp"], ascending=[True, True])
         df_det_filtrado = df_det_filtrado.drop(columns=["_data_temp"])
